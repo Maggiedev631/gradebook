@@ -1,8 +1,0 @@
-{
-  "name": "gradebook",
-  "version": "1.0.0",
-  "description": "成績與錄音登記簿",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" }
-}
