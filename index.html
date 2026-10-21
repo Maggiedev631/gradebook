@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>成績與錄音登記簿</title>
+<script>
+/* ============================================================
+   ★ 把 Firebase 設定貼在這裡（六個欄位的引號裡）
+   ============================================================ */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCMLopKavGeDAZn3fQH12oCQarA8FgbP1k",
+  authDomain: "gradeb-a367f.firebaseapp.com",
+  projectId: "gradeb-a367f",
+  storageBucket: "gradeb-a367f.firebasestorage.app",
+  messagingSenderId: "397670471065",
+  appId: "1:397670471065:web:d858f94c57b707f127af08"
+};
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chiron+GoRound+TC:wght@400;600;700;800&family=Fredoka:wght@500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* 單一淺色主題（白底），刻意不做深色。版面：彩色頁首（標題＋糖果色班級膠囊）→ 分頁 → 內容；登記頁為「評量清單｜登記表」兩欄，手機時堆疊 */
+:root{
+  --bg:#ffffff; --surface:#ffffff; --sunk:#f6f3fa; --ink:#2a1f3d; --muted:#7c7090; --line:#efe5f4;
+  --pink:#f2477e; --yellow:#f5a800; --mint:#14a898; --sky:#3b82f6; --grape:#8b5cf6; --orange:#f97316;
+  --pink-s:#ffe2ec; --yellow-s:#fff1c7; --mint-s:#d6f5f0; --sky-s:#dfeaff; --grape-s:#ece4ff; --orange-s:#ffe7d6;
+  --red:#e2334f; --red-s:#ffe0e6; --ok:#0f9a6e; --ok-s:#d6f4e6; --amber:#c27a00; --amber-s:#fff0cc;
+  --on:#ffffff;
+  --shadow:0 2px 4px rgba(139,92,246,.05),0 10px 24px -14px rgba(139,92,246,.3);
+  --f-body:"Chiron GoRound TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"Fredoka","Chiron GoRound TC",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#ffffff;color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;padding-bottom:60px}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.in{max-width:1140px;margin:0 auto}
+h1,h2,h3{margin:0;font-weight:800;text-wrap:balance}
+h2{font-size:21px} h3{font-size:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--grape) 55%,transparent);outline-offset:2px}
+
+/* 頁首 */
+.hero{position:relative;padding-top:calc(26px + env(safe-area-inset-top,0px));padding-bottom:20px;background:var(--surface)}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:linear-gradient(90deg,var(--pink) 0 20%,var(--yellow) 20% 40%,var(--mint) 40% 60%,var(--sky) 60% 80%,var(--grape) 80%)}
+.abc{display:flex;gap:6px}.abc span{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--f-num);font-weight:700;font-size:18px;color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.12)}
+.abc span:nth-child(1){background:var(--pink);transform:rotate(-8deg)}.abc span:nth-child(2){background:var(--yellow);transform:rotate(5deg) translateY(3px)}.abc span:nth-child(3){background:var(--mint);transform:rotate(-4deg)}
+.title-en{font-family:var(--f-num);font-weight:600;color:var(--grape);font-size:14px;letter-spacing:.08em}
+.hero .in{display:grid;gap:18px;position:relative}
+.brand{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:14px}
+.logo .mark{width:52px;height:52px;border-radius:16px;background:var(--pink);display:grid;place-items:center;transform:rotate(-6deg);box-shadow:var(--shadow);flex:none}
+.logo .mark svg{width:30px;height:30px}
+.logo h1{font-size:28px;line-height:1.15;letter-spacing:.02em}
+.dots{display:flex;gap:5px;margin-top:6px}
+.dots i{width:9px;height:9px;border-radius:50%;display:block}
+.who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.sync{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 11px}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.sync.busy i{background:var(--yellow)}
+.sync.local i{background:var(--orange)}
+.clsbar{display:flex;gap:8px;flex-wrap:wrap}
+.cls{--c:var(--grape);--cs:var(--grape-s);border:2px solid transparent;background:var(--cs);color:var(--c);padding:6px 16px;border-radius:999px;font-weight:700;font-size:15px;transition:transform .15s}
+.cls:hover{transform:translateY(-2px)}
+.cls[aria-pressed="true"]{background:var(--c);color:var(--on);box-shadow:0 6px 16px -8px var(--c)}
+.cls .ct{font-family:var(--f-num);font-size:12px;margin-left:6px;opacity:.8}
+.clsnone{color:var(--muted);font-size:14px}
+
+/* 分頁 */
+.navwrap{padding-block:22px 4px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:2px solid var(--line);background:var(--surface);padding:9px 18px;border-radius:14px;color:var(--muted);font-weight:700;font-size:14px;box-shadow:0 1px 0 var(--line);display:inline-flex;align-items:center;gap:8px}
+.tab .ic{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;font-size:12px;color:var(--on)}
+.tab[aria-selected="true"]{color:var(--ink);border-color:var(--ink);box-shadow:0 4px 0 var(--ink)}
+.tab .n{font-family:var(--f-num);font-size:12px;background:var(--red);color:#fff;border-radius:10px;padding:0 8px}
+main{padding-top:16px}
+.notice{border-radius:14px;padding:12px 16px;font-size:14px;margin-top:16px;background:var(--orange-s);color:var(--ink);border:1px dashed var(--orange)}
+.notice b{color:var(--orange)}
+
+/* 元件 */
+.card{background:var(--surface);border:2px solid var(--line);border-radius:22px;box-shadow:0 10px 30px -18px rgba(139,92,246,.35);padding:22px;min-width:0}
+.stack{display:grid;gap:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.label{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+.sub{color:var(--muted);font-size:13px}
+.cols{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=email],select,textarea{
+  background:var(--sunk);border:2px solid transparent;border-radius:12px;padding:8px 12px;min-width:0;color:var(--ink);transition:border-color .15s,background .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--grape);background:var(--surface);outline:none}
+textarea{width:100%;min-height:130px;resize:vertical}
+.btn{border:0;background:var(--sunk);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;transition:transform .12s,filter .12s}
+.btn:hover{transform:translateY(-1px);filter:brightness(.97)}
+.btn.primary{background:var(--pink);color:var(--on);box-shadow:0 6px 14px -8px var(--pink)}
+.btn.mint{background:var(--mint);color:var(--on)}
+.btn.sky{background:var(--sky-s);color:var(--sky)}
+.btn.danger{background:none;color:var(--red)}
+.btn.danger:hover{background:var(--red-s)}
+.btn.sm{padding:5px 12px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.empty{color:var(--muted);padding:44px 12px;text-align:center;display:grid;gap:8px;justify-items:center}
+.empty b{color:var(--ink);font-size:18px}
+.blob{width:64px;height:64px;border-radius:40% 60% 55% 45%/50% 45% 55% 50%;background:var(--yellow-s);display:grid;place-items:center;margin-bottom:4px}
+.blob svg{width:30px;height:30px;color:var(--yellow)}
+
+/* 摘要 */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.stat{border-radius:20px;padding:14px 18px;background:var(--cs);color:var(--c)}
+.stat .label{color:inherit;opacity:.85}
+.stat .v{font-family:var(--f-num);font-size:34px;line-height:1.1;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .v small{font-size:16px}
+@media (max-width:620px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 類型標籤 */
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:8px;padding:1px 8px;background:var(--cs);color:var(--c);vertical-align:1px;white-space:nowrap}
+
+/* 評量清單 */
+.items{display:grid;gap:8px;max-height:540px;overflow:auto;margin-inline:-6px;padding:2px 6px}
+.item{display:grid;gap:7px;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:11px 13px;transition:border-color .15s,transform .12s}
+.item:hover{transform:translateX(2px)}
+.item[aria-current="true"]{border-color:var(--c);background:var(--cs)}
+.item .t{font-weight:700;overflow-wrap:anywhere;display:flex;gap:8px;align-items:baseline}
+.item .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-family:var(--f-num)}
+.bar{height:7px;border-radius:7px;background:var(--sunk);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--c);border-radius:7px}
+.bar.full i{background:var(--ok)}
+details.new{border-top:2px dashed var(--line);padding-top:14px}
+details.new summary{cursor:pointer;font-weight:800;color:var(--pink);list-style:none;display:flex;align-items:center;gap:8px}
+details.new summary::-webkit-details-marker{display:none}
+details.new summary::before{content:"+";font-family:var(--f-num);display:inline-grid;place-items:center;width:24px;height:24px;border-radius:8px;background:var(--pink);color:var(--on);font-size:16px}
+details.new[open] summary::before{content:"−"}
+details.new form{margin-top:12px}
+.typepick{display:flex;flex-wrap:wrap;gap:6px}
+.typepick label{cursor:pointer}
+.typepick input{position:absolute;opacity:0;pointer-events:none}
+.typepick span{display:inline-block;padding:4px 12px;border-radius:999px;background:var(--cs);color:var(--c);font-weight:700;font-size:13px;border:2px solid transparent}
+.typepick input:checked+span{background:var(--c);color:var(--on)}
+.typepick input:focus-visible+span{border-color:var(--ink)}
+
+/* 登記表 */
+.sheet-h{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:16px;border-bottom:2px dashed var(--line)}
+.sheet-h h2{font-size:24px}
+.ring{display:flex;align-items:center;gap:10px}
+.ring svg{width:54px;height:54px}
+.ring .rv{font-family:var(--f-num);font-size:24px;line-height:1;font-weight:600}
+.srow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px 6px;border-radius:12px}
+.srow:nth-child(odd){background:color-mix(in srgb,var(--sunk) 55%,transparent)}
+.seat{font-family:var(--f-num);font-size:13px;color:var(--muted);text-align:center;background:var(--surface);border-radius:8px;padding:1px 0}
+.nm{font-weight:700;overflow-wrap:anywhere}
+.score{width:86px;text-align:center;font-family:var(--f-num);font-size:18px;font-weight:600;padding:5px 8px}
+.seg{display:inline-flex;gap:4px;flex-wrap:wrap}
+.seg button{border:2px solid var(--line);background:var(--surface);padding:3px 11px;font-size:13px;border-radius:999px;color:var(--muted);font-weight:700}
+.seg button:hover{border-color:var(--muted)}
+.seg button[aria-pressed="true"].done{background:var(--ok);border-color:var(--ok);color:var(--on)}
+.seg button[aria-pressed="true"].miss{background:var(--red);border-color:var(--red);color:var(--on)}
+.seg button[aria-pressed="true"].abs{background:var(--yellow);border-color:var(--yellow);color:var(--on)}
+.seg button[aria-pressed="true"].ex{background:var(--muted);border-color:var(--muted);color:var(--on)}
+.pill{font-size:12px;border-radius:999px;padding:2px 11px;white-space:nowrap;font-weight:700}
+.p-ok{background:var(--ok-s);color:var(--ok)}
+.p-miss,.p-fail{background:var(--red-s);color:var(--red)}
+.p-abs{background:var(--amber-s);color:var(--amber)}
+.p-ex{background:var(--sunk);color:var(--muted)}
+@media (max-width:560px){.srow{grid-template-columns:30px minmax(0,1fr) auto}.srow .ctl{grid-column:2/-1}}
+.hint{font-size:13px;color:var(--ink);background:var(--sky-s);border-radius:12px;padding:9px 14px}
+
+/* 學生查詢 */
+.search{position:relative}
+.search input{width:100%;padding-left:40px;font-size:16px}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
+.slist{display:flex;flex-wrap:wrap;gap:7px}
+.sbtn{border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 12px 3px 3px;font-size:14px;display:inline-flex;align-items:center;gap:7px;font-weight:700}
+.sbtn:hover{border-color:var(--muted)}
+.sbtn[aria-pressed="true"]{border-color:var(--grape);background:var(--grape-s)}
+.sbtn .c{font-family:var(--f-num);color:#fff;background:var(--red);font-size:11px;border-radius:9px;padding:0 7px}
+.av{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-size:13px;font-weight:800;background:var(--cs);color:var(--c);flex:none}
+.av.lg{width:62px;height:62px;font-size:24px;border-radius:22px}
+.profile{display:flex;gap:14px;align-items:center}
+.profile h2{font-size:26px}
+.owe{background:var(--red-s);border-radius:18px;padding:14px 16px}
+.owe h3{color:var(--red)}
+.hist{display:grid}
+.hrow{display:grid;grid-template-columns:50px minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 0;border-bottom:2px dotted var(--line)}
+.owe .hrow{border-bottom-color:color-mix(in srgb,var(--red) 20%,transparent)}
+.hrow:last-child{border-bottom:0}
+.hrow .d{font-family:var(--f-num);font-size:13px;color:var(--muted)}
+.hrow .tt{overflow-wrap:anywhere}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{background:var(--cs);color:var(--c);border-radius:16px;padding:10px 14px}
+.kpi .label{color:inherit;opacity:.85}
+.kpi .v{font-family:var(--f-num);font-size:28px;line-height:1.15;font-weight:600}
+
+/* 表格 */
+.scroll{overflow-x:auto}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
+.tbl th,.tbl td{text-align:left;padding:10px 8px;border-bottom:2px dotted var(--line);vertical-align:middle}
+.tbl th{font-weight:700;color:var(--muted);font-size:12px;letter-spacing:.1em}
+.tbl td.num{font-family:var(--f-num);font-size:22px;font-weight:600;text-align:center;color:var(--red)}
+.misslist{display:flex;flex-wrap:wrap;gap:5px}
+
+/* 名單 */
+.edit-row{display:grid;grid-template-columns:64px minmax(0,1fr) 130px auto;gap:8px;align-items:center;padding:5px 0}
+.edit-row input{width:100%}
+.edit-row .seatin{text-align:center;font-family:var(--f-num)}
+.edit-head{font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:700}
+@media (max-width:560px){.edit-row{grid-template-columns:54px minmax(0,1fr) auto}.edit-row .clsin{grid-column:2/3}.edit-head .hc{display:none}}
+
+/* 登入 */
+.login{max-width:440px;margin:40px auto;text-align:center;display:grid;gap:14px;justify-items:center}
+.gbtn{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:10px 22px;font-weight:700;font-size:15px}
+.gbtn:hover{border-color:var(--grape)}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(24px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 20px;border-radius:999px;font-size:14px;font-weight:700;z-index:20;box-shadow:var(--shadow)}
+.modal{position:fixed;inset:0;background:rgba(42,31,61,.45);display:grid;place-items:center;z-index:30;padding:16px}
+.modal .box{background:var(--surface);border-radius:22px;padding:24px;max-width:400px;width:100%;display:grid;gap:18px;box-shadow:var(--shadow)}
+
+/* 上傳紀錄 */
+.upbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;border:2px dashed var(--line);border-radius:14px;padding:10px 14px}
+.upbar.on{border-style:solid;border-color:color-mix(in srgb,var(--mint) 45%,transparent);background:var(--mint-s)}
+.upbar .ut{display:flex;align-items:center;gap:10px;font-weight:700}
+.upbar .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--sunk);color:var(--muted);font-size:16px}
+.upbar.on .ic{background:var(--mint);color:#fff}
+.upbar .warn{color:var(--orange);font-size:13px;font-weight:700}
+.upchip{font-size:11px;font-weight:700;border-radius:6px;padding:0 6px;background:var(--sunk);color:var(--muted);font-family:var(--f-body)}
+.upchip.on{background:var(--mint-s);color:var(--mint)}
+.upchip.stale{background:var(--orange-s);color:var(--orange)}
+/* 補考 */
+.seg button[aria-pressed="true"].mk,.seg .mk{border-color:var(--grape);color:var(--grape)}
+.seg button[aria-pressed="true"].mk{background:var(--grape);color:var(--on)}
+.mkbox{grid-column:1/-1;background:var(--grape-s);border-radius:14px;padding:12px 14px;display:grid;gap:10px;margin-top:2px}
+.mkhist{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mkchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border-radius:999px;padding:3px 6px 3px 12px;font-size:13px;color:var(--grape)}
+.mkchip b{font-family:var(--f-num);font-size:15px}
+.mkchip button{border:0;background:var(--grape-s);color:var(--grape);width:20px;height:20px;border-radius:50%;line-height:1;padding:0}
+.mkform .mkdate{width:auto}
+.mkform .mksc{width:120px}
+/* 紀錄 */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters input[type=search]{flex:1;min-width:140px}
+.mono{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl.rec{min-width:860px}
+.tbl.rec td{vertical-align:top}
+.tbl.rec tr.open td{border-bottom-color:transparent}
+.logrow td{padding-top:0}
+.logs{background:var(--sunk);border-radius:12px;padding:8px 14px;display:grid}
+.lg{display:grid;grid-template-columns:140px minmax(0,1fr) auto;gap:12px;padding:5px 0;border-bottom:1px dotted var(--line);font-size:13px}
+.lg:last-child{border-bottom:0}
+.cardbox{max-width:560px!important;max-height:calc(100vh - 32px);overflow:auto}
+.cardview{background:var(--sunk);border-radius:16px;padding:12px;display:grid;place-items:center}
+.cardview img{width:100%;max-width:420px;border-radius:10px;box-shadow:0 6px 20px -10px rgba(0,0,0,.3)}
+#modal{z-index:40}
+
+/* 版面修正：表單元素不超出卡片 */
+.stack>*{min-width:0}
+.card input:not([type=radio]):not([type=checkbox]):not([type=hidden]),.card select,.card textarea{max-width:100%}
+#newItem input[type=text],#newItem .dbtn{width:100%}
+#newItem #niScoreRow input{width:0;flex:1 1 0}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer}
+/* 日曆 */
+.dfield{display:inline-flex;max-width:100%}
+.dbtn{display:inline-flex;align-items:center;gap:8px;background:var(--sunk);border:2px solid transparent;border-radius:12px;padding:8px 12px;font-family:var(--f-num);font-size:15px;color:var(--ink);text-align:left;white-space:nowrap}
+.dbtn svg{width:18px;height:18px;color:var(--grape);flex:none}
+.dbtn.empty{color:var(--muted);font-family:var(--f-body)}
+.dbtn:hover,.dbtn:focus-visible{border-color:var(--grape)}
+.dp{position:fixed;z-index:50;width:292px;background:var(--surface);border:2px solid var(--line);border-radius:20px;box-shadow:0 18px 40px -16px rgba(42,31,61,.35);padding:14px}
+.dph{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.dph b{font-size:16px}
+.dph button{border:0;background:var(--sunk);width:32px;height:32px;border-radius:10px;font-size:20px;line-height:1;color:var(--ink)}
+.dpw,.dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.dpw span{font-size:12px;font-weight:700;color:var(--muted);padding:4px 0}
+.dpg button{border:0;background:none;height:36px;border-radius:50%;font-family:var(--f-num);font-size:15px;font-weight:600;color:var(--ink)}
+.dpg button.we{color:var(--muted)}
+.dpg button:hover{background:var(--grape-s)}
+.dpg button.today{color:var(--pink);box-shadow:inset 0 0 0 2px var(--pink)}
+.dpg button.sel{background:var(--pink);color:#fff;box-shadow:none}
+.dpf{display:flex;gap:6px;justify-content:flex-end;margin-top:8px}
+.dpf button{border:0;background:var(--sunk);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;color:var(--ink)}
+
+/* 補課 */
+.mkrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;padding:14px 4px;border-bottom:2px dotted var(--line);align-items:start}
+.mkrow:last-child{border-bottom:0}
+.mkrow.done .mkmain{opacity:.7}
+.mkmain{display:grid;gap:4px}
+.linkbtn{border:0;background:none;padding:0;color:var(--grape);font-size:13px;font-weight:700;justify-self:start;cursor:pointer}
+.mkmain b{font-size:16px}
+.mkc{font-weight:700;overflow-wrap:anywhere}
+.mkside{display:grid;gap:6px;justify-items:end}
+.seg.mkf button[aria-pressed="true"]{background:var(--sky);border-color:var(--sky);color:var(--on)}
+#mkNew select,#mkNew input[type=text],#mkNew textarea,#mkNew .dbtn{width:100%}
+#mkNew textarea{min-height:0;line-height:1.6}
+.mkc,.mknote{white-space:pre-wrap}
+@media (max-width:560px){.mkrow{grid-template-columns:minmax(0,1fr)}.mkside{justify-items:start}}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.login{max-width:440px;margin:40px auto;text-align:center;display:grid;gap:14px;justify-items:center}
+.gbtn{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:10px 22px;font-weight:700;font-size:15px}
+.gbtn:hover{border-color:var(--grape)}
+</style>
+</head>
+<body>
+<header class="hero gut">
+  <div class="in">
+    <div class="brand">
+      <div class="logo"><div class="abc" aria-hidden="true"><span>A</span><span>B</span><span>C</span></div>
+        <div><div class="title-en">GRADEBOOK</div><h1>成績與錄音登記簿</h1></div></div>
+      <div class="who"><span class="sync" id="sync"><i></i><span>連線中</span></span><span id="me"></span><button class="btn sm" id="logout" hidden>登出</button></div>
+    </div>
+    <div class="clsbar" id="classes"></div>
+  </div>
+</header>
+
+<div class="gut"><div class="in">
+  <div id="notice" class="notice" hidden></div>
+  <div class="navwrap" id="nav">
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="entry" aria-selected="true"><span class="ic" style="background:var(--pink)">✎</span>登記成績</button>
+      <button class="tab" role="tab" data-tab="student" aria-selected="false"><span class="ic" style="background:var(--sky)">☺</span>學生查詢</button>
+      <button class="tab" role="tab" data-tab="missing" aria-selected="false"><span class="ic" style="background:var(--orange)">!</span>未完成總表<span class="n" id="missN" hidden></span></button>
+      <button class="tab" role="tab" data-tab="records" aria-selected="false"><span class="ic" style="background:var(--grape)">☰</span>考試紀錄</button>
+      <button class="tab" role="tab" data-tab="makeup" aria-selected="false"><span class="ic" style="background:var(--sky)">↻</span>補課<span class="n" id="mkN" hidden></span></button>
+      <button class="tab" role="tab" data-tab="roster" aria-selected="false"><span class="ic" style="background:var(--mint)">≡</span>班級與學生</button>
+    </nav>
+  </div>
+  <main id="view"></main>
+</div></div>
+
+<div id="dp" class="dp" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<div id="cardModal" class="modal" hidden><div class="box cardbox"><div class="row between"><h3 id="cardName"></h3><button class="btn sm" id="cardClose" aria-label="關閉">✕</button></div>
+  <div class="cardview"><img id="cardImg" alt="家長通知卡預覽"></div>
+  <label class="label" for="cardMsg">老師的話（每張卡都會顯示）</label><textarea id="cardMsg" rows="2" style="min-height:64px"></textarea>
+  <div class="row between"><div class="row"><button class="btn sm" id="cardPrev">‹ 上一位</button><span class="sub" id="cardPos"></span><button class="btn sm" id="cardNext">下一位 ›</button></div>
+  <div class="row"><button class="btn sky sm" id="cardCopy">複製圖片</button><button class="btn primary sm" id="cardSave">下載圖片</button></div></div></div></div>
+<div id="modal" class="modal" hidden><div class="box"><div id="mText" style="font-weight:700"></div><div class="row" style="justify-content:flex-end"><button class="btn" id="mNo">取消</button><button class="btn" id="mYes" style="background:var(--red);color:#fff">確定</button></div></div></div>
+
+<script>
+const CFG=window.FIREBASE_CONFIG||{};
+const FB_OK=!!(CFG.apiKey&&CFG.projectId&&window.firebase);
+let fs=null,auth=null;
+if(FB_OK){firebase.initializeApp(CFG);fs=firebase.firestore();auth=firebase.auth()}
+const Store={
+  listen:(c,cb,err)=>fs.collection(c).onSnapshot(s=>cb(s.docs.map(d=>({id:d.id,...d.data()}))),err),
+  newId:c=>fs.collection(c).doc().id,
+  set:(c,id,d)=>fs.collection(c).doc(id).set(d),
+  update:(c,id,flat)=>fs.collection(c).doc(id).update(flat),
+  del:(c,id)=>fs.collection(c).doc(id).delete(),
+  getAll:async c=>(await fs.collection(c).get()).docs.map(d=>({id:d.id,...d.data()}))};
+
+/* ---------------- 設定 ---------------- */
+const TYPES=[["word","單字","score","sky"],["unit","單元考","score","grape"],["w1200","1200單字小考","score","pink"],["w2000","2000單字小考","score","mint"],["w400","400單字小考","score","orange"],["rec","錄音","done","yellow"],["hw","作業","done","orange"],["other","其他","score","grape"]];
+const MK_TYPE=["makeup","補課","done","sky"];
+const OLD_TYPES=[MK_TYPE,["quiz","小考","score","sky"],["exam","段考","score","grape"],["month","月考","score","pink"],["vocab","單字考","score","mint"]];
+const TYPE=Object.fromEntries([...TYPES,...OLD_TYPES].map(t=>[t[0],{label:t[1],kind:t[2],color:t[3]}]));
+const PAL=["pink","sky","mint","grape","orange","yellow"];
+const cv=c=>`--c:var(--${c});--cs:var(--${c}-s)`;
+const S={students:[],items:[],cls:null,tab:"entry",itemId:null,stuId:null,missType:"all",q:"",ready:{s:false,i:false},overlay:{},readOnly:false,started:false,
+  mkOpen:null,openLog:null,rec:{cls:"all",type:"all",q:"",from:"",to:"",only:"all"}};
+try{const t=localStorage.getItem("gb.tab");if(t)S.tab=t;const c=localStorage.getItem("gb.cls");if(c)S.cls=c;}catch(e){}
+let ME=null,USER=null,DL=null;const NAMES={},asked=new Set();
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const hash=s=>[...String(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
+const clsColor=c=>{const cl=classesList();const i=cl.indexOf(c);return PAL[(i<0?hash(c):i)%PAL.length]};
+const stuColor=s=>PAL[hash(s.id)%PAL.length];
+const initial=n=>{n=String(n||"").trim();const m=n.match(/[A-Za-z]/);return /[一-鿿]/.test(n)?n.slice(-1):(m?m[0].toUpperCase():n.slice(0,1))};
+const pad=n=>String(n).padStart(2,"0");
+const todayStr=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+const md=s=>s?String(s).slice(5).replace("-","/"):"";
+const fmtTs=ts=>{const d=new Date(ts);return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const newKey=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const who=id=>id?(NAMES[id]||"老師"):"—";
+function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2200)}
+function ask(text,yes="確定刪除"){return new Promise(r=>{$("#mText").textContent=text;$("#mYes").textContent=yes;$("#modal").hidden=false;
+  const done=v=>{$("#modal").hidden=true;$("#mYes").onclick=$("#mNo").onclick=null;r(v)};$("#mYes").onclick=()=>done(true);$("#mNo").onclick=()=>done(false);})}
+function notice(html){const n=$("#notice");n.innerHTML=html||"";n.hidden=!html}
+
+/* ---------------- 資料推導 ---------------- */
+const classesList=()=>{const set=new Set();S.students.forEach(s=>s.cls&&set.add(s.cls));S.items.forEach(i=>i.cls&&set.add(i.cls));return [...set].sort((a,b)=>a.localeCompare(b,"zh-Hant",{numeric:true}))};
+const studentsOf=c=>S.students.filter(s=>s.cls===c).sort((a,b)=>(Number(a.seat)||999)-(Number(b.seat)||999)||(a.createdAt||0)-(b.createdAt||0));
+const itemsOf=c=>S.items.filter(i=>i.cls===c).sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
+const kindOf=i=>i.type==="other"?(i.kind||"done"):(TYPE[i.type]?.kind||"done");
+const typeOf=i=>{const t=TYPE[i.type]||TYPE.other;return i.type==="other"?{...t,label:i.typeName||"其他",kind:kindOf(i)}:t};
+const hasPass=i=>i.pass!=null&&i.pass!=="";
+function res(item,sid){const o=S.overlay[item.id]?.[sid];const r=(item.results||{})[sid]||{};
+  if(!o)return r;const m={...r,...o};if(o.mk)m.mk={...(r.mk||{}),...o.mk};if(o.log)m.log={...(r.log||{}),...o.log};return m}
+function makeups(r){return Object.entries(r.mk||{}).filter(([,m])=>m&&!m.del&&m.sc!=null).map(([k,m])=>({k,...m})).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.at||0)-(b.at||0))}
+function logs(r){return Object.entries(r.log||{}).map(([k,l])=>({k,...l})).sort((a,b)=>(a.at||0)-(b.at||0))}
+function status(item,sid){
+  if(item._mk){const m=item._mk;return m.done?{c:"ok",l:"已補課"+(m.doneDate?" "+md(m.doneDate):"")}:{c:"miss",l:m.planDate?"預計 "+md(m.planDate)+" 補課":"未補課",out:true}}
+  const r=res(item,sid),kind=kindOf(item);
+  if(kind==="score"){
+    const mks=makeups(r),last=mks[mks.length-1];
+    if(last){const f=Number(last.sc);
+      if(hasPass(item)&&f<Number(item.pass))return{c:"fail",l:"補考未達標 "+last.sc,out:true,sc:last.sc};
+      return{c:"ok",l:"補考 "+last.sc,sc:last.sc,mk:true}}
+    if(r.st==="absent")return{c:"abs",l:"缺考待補",out:true};
+    if(r.sc==null||r.sc==="")return{c:"miss",l:"未登記",out:true};
+    if(hasPass(item)&&Number(r.sc)<Number(item.pass))return{c:"fail",l:"未達標 "+r.sc,out:true,sc:r.sc};
+    return{c:"ok",l:String(r.sc),sc:r.sc};
+  }
+  if(r.st==="absent")return{c:"abs",l:"請假待補",out:true};
+  return r.st==="done"?{c:"ok",l:"已完成"}:{c:"miss",l:"未完成",out:true};
+}
+const outItems=stu=>itemsOf(stu.cls).filter(i=>status(i,stu.id).out);
+const mkItem=m=>({id:"mk_"+m.id,type:"makeup",title:m.content||"補課",date:m.missDate||"",_mk:m});
+const makeupsOf=(stu,all)=>(S.makeups||[]).filter(m=>m.sid===stu.id&&(all||!m.done)).sort((a,b)=>(b.missDate||"").localeCompare(a.missDate||""));
+const outstanding=stu=>[...outItems(stu),...makeupsOf(stu).map(mkItem)].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+
+/* ---------------- 老師名字 ---------------- */
+function wantNames(){}
+
+/* ---------------- 寫入 ---------------- */
+const pend={},chain={},timers={};let inflight=0;
+function setSync(){const busy=inflight||Object.keys(timers).length;const el=$("#sync");el.className="sync"+(busy?" busy":"");el.lastChild.textContent=busy?"儲存中…":(S.started?"已同步":"連線中")}
+function patch(itemId,sid,val,delay=500,logEntry=null){
+  S.overlay[itemId]=S.overlay[itemId]||{};const ov=S.overlay[itemId][sid]=S.overlay[itemId][sid]||{};
+  pend[itemId]=pend[itemId]||{};const pd=pend[itemId][sid]=pend[itemId][sid]||{};
+  Object.entries(val).forEach(([k,v])=>{if(k==="mk"){ov.mk={...(ov.mk||{}),...v};pd.mk={...(pd.mk||{}),...v}}else{ov[k]=v;pd[k]=v}});
+  if(logEntry){const k=newKey(),e={...logEntry,at:Date.now(),by:ME||null};ov.log={...(ov.log||{}),[k]:e};pd.log={...(pd.log||{}),[k]:e}}
+  clearTimeout(timers[itemId]);timers[itemId]=setTimeout(()=>flush(itemId),delay);setSync();
+}
+function flush(itemId){
+  delete timers[itemId];const p=pend[itemId];if(!p)return;delete pend[itemId];inflight++;setSync();
+  // 分數輸入：在停頓後才記一筆紀錄
+  Object.entries(p).forEach(([sid,v])=>{if("sc" in v&&!Object.values(v.log||{}).some(l=>l.a==="absent")){const k=newKey(),e={a:"score",v:v.sc,at:Date.now(),by:ME||null};v.log={...(v.log||{}),[k]:e};
+    const ov=S.overlay[itemId]?.[sid];if(ov)ov.log={...(ov.log||{}),[k]:e}}});
+  const flat={updatedAt:Date.now()};
+  Object.entries(p).forEach(([sid,v])=>Object.entries(v).forEach(([k,x])=>{
+    if(k==="mk"||k==="log")Object.entries(x).forEach(([mk,mv])=>flat[`results.${sid}.${k}.${mk}`]=mv);else flat[`results.${sid}.${k}`]=x}));
+  chain[itemId]=(chain[itemId]||Promise.resolve()).then(()=>Store.update("items",itemId,flat))
+   .then(()=>{Object.keys(p).forEach(s=>{if(!pend[itemId]?.[s]&&S.overlay[itemId])delete S.overlay[itemId][s]})})
+   .catch(writeErr).finally(()=>{inflight--;setSync()});
+}
+function writeErr(e){
+  if(e&&e.code==="permission-denied"){S.readOnly=true;notice("<b>這個 Gmail 沒有編輯權限。</b>請管理老師把你的 Gmail 加進 Firebase 規則的名單。");render();}
+  else if(e&&e.code==="resource-exhausted")notice("<b>今日免費額度已用完</b>，明天會自動恢復。");
+  else toast("儲存失敗，請檢查網路後再試");
+}
+async function safe(fn,ok){try{inflight++;setSync();await fn();ok&&toast(ok)}catch(e){writeErr(e)}finally{inflight--;setSync()}}
+
+/* ---------------- 渲染 ---------------- */
+function render(){
+  const cl=classesList();if(!(S.cls==="__all"&&S.tab==="missing")&&(!S.cls||!cl.includes(S.cls)))S.cls=cl[0]||null;
+  $("#classes").innerHTML=!S.started?"":cl.length?cl.map(c=>`<button class="cls" style="${cv(clsColor(c))}" data-cls="${esc(c)}" aria-pressed="${c===S.cls}">${esc(c)}<span class="ct">${studentsOf(c).length}</span></button>`).join(""):`<div class="clsnone">還沒有班級，到「班級與學生」新增吧</div>`;
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===S.tab));
+  let total=0;(S.cls&&S.cls!=="__all"?studentsOf(S.cls):S.students).forEach(s=>total+=outstanding(s).length);{const k=$("#mkN"),n=(S.makeups||[]).filter(m=>!m.done&&(!S.cls||S.cls==="__all"||S.students.find(x=>x.id===m.sid)?.cls===S.cls)).length;k.hidden=!n;k.textContent=n}const mn=$("#missN");mn.hidden=!total;mn.textContent=total;
+  if(!S.started)return;
+  const ae=document.activeElement,keep=ae&&ae.dataset&&ae.dataset.k?{k:ae.dataset.k,s:ae.selectionStart,e:ae.selectionEnd,v:ae.value,ed:!!ae.dataset.keepv}:null;
+  const v=$("#view");
+  if(!S.ready.s||!S.ready.i){v.innerHTML=`<div class="card empty">載入資料中…</div>`;return}
+  v.innerHTML={entry:vEntry,student:vStudent,missing:vMissing,records:vRecords,makeup:vMakeup,roster:vRoster}[S.tab]();
+  if(keep){const el=v.querySelector(`[data-k="${CSS.escape(keep.k)}"]`);if(el){if(keep.ed)el.value=keep.v;el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
+}
+const emptyBox=(t,d,extra="")=>`<div class="card empty"><span class="blob"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.6 6.3L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.7z"/></svg></span><b>${t}</b>${d}${extra}</div>`;
+function statsHtml(c){
+  const st=studentsOf(c),it=itemsOf(c);let out=0,oi=0;st.forEach(s=>{out+=outstanding(s).length;oi+=outItems(s).length});
+  const cells=st.length*it.length,pct=cells?Math.round((cells-oi)/cells*100):0;
+  return `<div class="stats"><div class="stat" style="${cv("sky")}"><div class="label">學生</div><div class="v">${st.length}</div></div><div class="stat" style="${cv("grape")}"><div class="label">評量項目</div><div class="v">${it.length}</div></div>
+   <div class="stat" style="${cv(out?"pink":"mint")}"><div class="label">待補項目</div><div class="v">${out}</div></div><div class="stat" style="${cv("mint")}"><div class="label">整體完成率</div><div class="v">${pct}<small>%</small></div></div></div>`;
+}
+function ring(n,t,col){const p=t?n/t:0,C=2*Math.PI*21;return `<svg viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="21" fill="none" stroke="var(--sunk)" stroke-width="7"/><circle cx="27" cy="27" r="21" fill="none" stroke="var(--${p>=1?"ok":col})" stroke-width="7" stroke-linecap="round" stroke-dasharray="${C*p} ${C}" transform="rotate(-90 27 27)"/></svg>`}
+
+function vEntry(){
+  if(!S.cls)return emptyBox("先建立班級與學生名單","到「班級與學生」輸入班級名稱和學生姓名，就可以開始登記。",`<button class="btn primary" data-tab="roster" style="margin-top:6px">前往建立名單</button>`);
+  const items=itemsOf(S.cls),stus=studentsOf(S.cls);
+  if(!items.find(i=>i.id===S.itemId))S.itemId=items[0]?.id||null;
+  const list=items.map(i=>{const n=stus.filter(s=>!status(i,s.id).out).length,t=typeOf(i),full=stus.length&&n===stus.length;
+    return `<button class="item" style="${cv(t.color)}" data-item="${i.id}" aria-current="${i.id===S.itemId}"><span class="t"><span class="tag">${t.label}</span><span>${esc(i.title)}</span></span>
+      <span class="bar ${full?"full":""}"><i style="width:${stus.length?n/stus.length*100:0}%"></i></span>
+      <span class="meta"><span>${esc(i.date||"")}</span><span class="row" style="gap:6px">${upChip(i)}<span>${n} / ${stus.length}</span></span></span></button>`}).join("");
+  const form=S.readOnly?"":`<details class="new" ${items.length?"":"open"}><summary>新增評量項目</summary><form id="newItem" class="stack" autocomplete="off">
+      <div class="typepick">${TYPES.map((t,ix)=>`<label style="${cv(t[3])}"><input type="radio" name="niType" value="${t[0]}" ${ix===0?"checked":""}><span>${t[1]}</span></label>`).join("")}</div>
+      <input id="niTitle" type="text" placeholder="名稱，例：Unit 3 單字小考" required>
+      <div class="stack" id="niOther" hidden style="gap:8px"><input id="niTypeName" type="text" placeholder="類型名稱，例：閱讀測驗、口說" aria-label="自訂類型名稱">
+        <div class="row"><label class="chk"><input type="radio" name="niKind" value="score" checked> 要登記分數</label><label class="chk"><input type="radio" name="niKind" value="done"> 只記完成／未交</label></div></div>
+      <span class="label">考試日期</span>${dateField("niDate",todayStr())}
+      <div class="row" id="niScoreRow"><input id="niFull" type="number" placeholder="滿分 100" class="grow" aria-label="滿分"><input id="niPass" type="number" placeholder="及格分（可空白）" class="grow" aria-label="及格分"></div>
+      <button class="btn primary" type="submit">新增到 ${esc(S.cls)}</button></form></details>`;
+  const item=items.find(i=>i.id===S.itemId);
+  return statsHtml(S.cls)+`<div class="cols">
+    <section class="card stack"><div class="row between"><h3>評量項目</h3><span class="sub">${items.length} 項</span></div><div class="items">${list||`<div class="sub" style="padding:4px">還沒有評量項目</div>`}</div>${form}</section>
+    <section class="card stack">${item?gridHtml(item,stus):`<div class="empty"><b>選一個評量開始登記</b>左側新增小考、段考或錄音作業。</div>`}</section></div>`;
+}
+function gridHtml(item,stus){
+  const t=typeOf(item),kind=t.kind,ro=S.readOnly?"disabled":"";
+  const doneN=stus.filter(s=>!status(item,s.id).out).length;
+  const rows=stus.map((s,ix)=>{const r=res(item,s.id),st=status(item,s.id);let ctl,extra="";
+    if(kind==="score"){
+      const mks=makeups(r),needMk=st.out&&(r.st==="absent"||st.c==="fail")||mks.length,open=S.mkOpen===item.id+"|"+s.id;
+      ctl=`<input class="score" type="number" inputmode="decimal" data-k="sc-${s.id}" data-sc="${s.id}" value="${r.st==="absent"?"":(r.sc??"")}" placeholder="${r.st==="absent"?"缺考":"—"}" aria-label="${esc(s.name)} 成績" ${ro}>
+        <span class="seg"><button class="abs" tabindex="-1" data-st="absent" data-sid="${s.id}" aria-pressed="${r.st==="absent"}" ${ro}>缺考</button>${needMk?`<button class="mk" tabindex="-1" data-mk="${s.id}" aria-pressed="${open}" ${ro}>補考${mks.length?" "+mks.length:""}</button>`:""}</span>`;
+      if(open){extra=`<div class="mkbox"><div class="mkhist">${mks.length?mks.map(m=>`<span class="mkchip">${md(m.date)} 補考 <b>${esc(m.sc)}</b><button tabindex="-1" data-mkdel="${s.id}|${m.k}" aria-label="刪除這筆補考" ${ro}>×</button></span>`).join(""):`<span class="sub">原考試 ${md(item.date)}：${r.st==="absent"?"缺考":esc(r.sc??"未登記")}</span>`}</div>
+        ${ro?"":`<form class="row mkform" data-mkform="${s.id}" autocomplete="off"><span class="sub">補考日期</span>${dateField("mkd-"+s.id,todayStr(),"mkdate")}<input type="number" inputmode="decimal" class="score mksc" data-k="mk-${s.id}" placeholder="補考成績" aria-label="補考成績" required><button class="btn primary sm" type="submit">登記補考</button></form>`}</div>`}
+      if(mks.length){const last=mks[mks.length-1];st.l=`原 ${r.st==="absent"?"缺考":(r.sc??"—")} → 補 ${last.sc}`}
+    }else{
+      ctl=`<span class="seg"><button class="done" data-st="done" data-sid="${s.id}" aria-pressed="${r.st==="done"}" ${ro}>完成</button><button class="miss" data-st="" data-sid="${s.id}" aria-pressed="${!r.st}" ${ro}>未交</button><button class="abs" data-st="absent" data-sid="${s.id}" aria-pressed="${r.st==="absent"}" ${ro}>請假</button></span>`;
+    }
+    return `<div class="srow"><span class="seat">${esc(s.seat||ix+1)}</span><span class="nm">${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}</span>${extra}</div>`}).join("");
+  return `<div class="sheet-h" style="${cv(t.color)}"><div class="stack" style="gap:4px"><div><span class="tag">${t.label}</span> <span class="sub">${esc(item.date||"")}${item.full?` · 滿分 ${item.full}`:""}${hasPass(item)?` · 及格 ${item.pass}`:""}</span></div><h2>${esc(item.title)}</h2></div>
+    <div class="ring">${ring(doneN,stus.length,t.color)}<div><div class="rv">${doneN}<span class="sub"> / ${stus.length}</span></div><div class="sub">已完成</div></div></div></div>
+    ${upBar(item)}
+    ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
+    <div>${rows||`<div class="empty">這個班級還沒有學生</div>`}</div>
+    ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
+}
+
+function histLine(i,s){const st=status(i,s.id),t=typeOf(i),r=res(i,s.id),mks=kindOf(i)==="score"?makeups(r):[];
+  let detail="";if(kindOf(i)==="score"&&mks.length)detail=`<div class="sub">原 ${r.st==="absent"?"缺考":esc(r.sc??"—")}　${mks.map(m=>`${md(m.date)} 補考 ${esc(m.sc)}`).join("　")}</div>`;
+  if(kindOf(i)==="done"&&r.st==="done"){const l=logs(r).filter(x=>x.a==="st"&&x.v==="done").pop();if(l)detail=`<div class="sub">完成登記：${fmtTs(l.at)}</div>`}
+  return `<div class="hrow"><span class="d">${md(i.date)}</span><span class="tt"><span class="tag" style="${cv(t.color)}">${t.label}</span> ${esc(i.title)}${detail}</span><span class="pill p-${st.c}">${esc(st.l)}${st.c==="ok"&&t.kind==="score"&&i.full?" / "+i.full:""}</span></div>`}
+
+function vStudent(){
+  if(!S.students.length)return emptyBox("還沒有學生","先到「班級與學生」建立名單。");
+  const q=S.q.trim().toLowerCase();
+  const pool=q?S.students.filter(s=>s.name.toLowerCase().includes(q)):(S.cls?studentsOf(S.cls):[]);
+  if(!pool.find(s=>s.id===S.stuId))S.stuId=pool[0]?.id||null;
+  const btns=pool.map(s=>{const n=outstanding(s).length;return `<button class="sbtn" data-stu="${s.id}" aria-pressed="${s.id===S.stuId}"><span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>${esc(s.name)}${q?` <span class="sub">${esc(s.cls)}</span>`:""}${n?`<span class="c">${n}</span>`:""}</button>`}).join("");
+  const s=S.students.find(x=>x.id===S.stuId);let card="";
+  if(s){const its=itemsOf(s.cls),out=outstanding(s),allH=[...its,...makeupsOf(s,true).map(mkItem)].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    const scored=its.filter(i=>kindOf(i)==="score").map(i=>({i,st:status(i,s.id)})).filter(x=>x.st.sc!=null);
+    const avg=scored.length?(scored.reduce((a,x)=>a+(Number(x.st.sc)/(Number(x.i.full)||100)*100),0)/scored.length).toFixed(1):"—";
+    const recs=its.filter(i=>kindOf(i)==="done"),recDone=recs.filter(i=>!status(i,s.id).out).length;
+    card=`<section class="card stack" style="gap:18px"><div class="row between"><div class="profile"><span class="av lg" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span><div><h2>${esc(s.name)}</h2><div class="sub">${esc(s.cls)}${s.seat?` · ${esc(s.seat)} 號`:""}</div></div></div>
+      <div class="row"><button class="btn sm" data-stulog="${s.id}">看詳細紀錄</button><button class="btn sky sm" data-copy="${s.id}">複製待補清單</button><button class="btn primary sm" data-card="${s.id}">家長通知卡</button></div></div>
+      <div class="kpis"><div class="kpi" style="${cv(out.length?"pink":"mint")}"><div class="label">待補</div><div class="v">${out.length}</div></div><div class="kpi" style="${cv("sky")}"><div class="label">考試平均</div><div class="v">${avg}</div></div><div class="kpi" style="${cv("yellow")}"><div class="label">錄音／作業</div><div class="v">${recDone}<span style="font-size:15px"> / ${recs.length}</span></div></div></div>
+      ${out.length?`<div class="owe stack" style="gap:4px"><h3>還欠這些</h3><div class="hist">${out.map(i=>histLine(i,s)).join("")}</div></div>`:`<div class="pill p-ok" style="justify-self:start;padding:7px 16px;font-size:14px">全部完成，好棒！</div>`}
+      <div class="stack" style="gap:4px"><h3>全部紀錄</h3><div class="hist">${allH.map(i=>histLine(i,s)).join("")||`<div class="sub">尚無評量</div>`}</div></div></section>`}
+  return `<div class="cols"><section class="card stack"><div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg><input id="q" type="search" data-k="q" data-keepv="1" placeholder="搜尋姓名（跨所有班級）" value="${esc(S.q)}"></div>
+    <div class="label">${q?"搜尋結果":esc(S.cls||"")+" 學生"}</div><div class="slist">${btns||`<span class="sub">找不到學生</span>`}</div></section>${card||`<section class="card empty">選一位學生查看紀錄</section>`}</div>`;
+}
+
+function vMissing(){
+  const cl=classesList();if(!cl.length)return emptyBox("尚無資料","");
+  const all=S.cls==="__all",cs=all?cl:[S.cls];let rows="",cnt=0;
+  cs.forEach(c=>studentsOf(c).forEach(s=>{let out=outstanding(s);if(S.missType!=="all")out=out.filter(i=>S.missType==="mk"?i._mk:S.missType==="rec"?(!i._mk&&kindOf(i)==="done"):kindOf(i)==="score");
+    if(!out.length)return;cnt++;
+    rows+=`<tr><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="sbtn" data-go="${s.id}"><span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>${esc(s.name)}</button><button class="btn sm" data-card="${s.id}" title="家長通知卡" aria-label="${esc(s.name)} 家長通知卡">卡</button></div></td>${all?`<td><span class="tag" style="${cv(clsColor(c))}">${esc(c)}</span></td>`:""}<td class="num">${out.length}</td><td><div class="misslist">${out.map(i=>{const st=status(i,s.id);return `<span class="pill p-${st.c}">${i._mk?"補課："+esc(i.title.split("\n")[0]):esc(i.title)}${st.c!=="miss"?" · "+esc(st.l):""}</span>`}).join("")}</div></td></tr>`}));
+  return `<section class="card stack"><div class="row between"><div><div class="label">${all?"全部班級":esc(S.cls)}</div><h2>${cnt?`還有 ${cnt} 位學生需要補交`:"大家都完成了！"}</h2></div>
+     <div class="row"><select id="mt" aria-label="篩選"><option value="all">全部項目</option><option value="score" ${S.missType==="score"?"selected":""}>只看考試</option><option value="rec" ${S.missType==="rec"?"selected":""}>只看錄音／作業</option><option value="mk" ${S.missType==="mk"?"selected":""}>只看補課</option></select>
+     <button class="btn sm" data-all>${all?"只看目前班級":"看全部班級"}</button><button class="btn sm" id="copyAll">複製清單</button>${all?"":`<button class="btn sm primary" id="zipCards">下載全班通知卡</button>`}</div></div>
+     ${rows?`<div class="scroll"><table class="tbl"><thead><tr><th>學生</th>${all?"<th>班級</th>":""}<th style="text-align:center">待補</th><th>項目</th></tr></thead><tbody>${rows}</tbody></table></div>`:`<div class="empty">目前沒有待補項目</div>`}</section>
+     ${S.missType==="score"||S.missType==="rec"?"":pendingMkHtml(cs)}`;
+}
+
+/* ---------------- 考試紀錄 ---------------- */
+function logText(l,item){
+  if(l.a==="mkc")return "登記缺課";
+  if(l.a==="mkd")return `標記補課完成（${md(l.date)}）`;
+  if(l.a==="score")return l.v==null?"清除成績":`登記成績 ${l.v}`;
+  if(l.a==="absent")return l.v?"標記缺考":"取消缺考";
+  if(l.a==="mk")return `登記補考 ${l.v}（補考日 ${md(l.date)}）`;
+  if(l.a==="mkdel")return `刪除補考 ${l.v??""}`;
+  if(l.a==="st")return {done:"標記完成","":"改為未交",absent:"標記請假"}[l.v]??"更新狀態";
+  return "更新";
+}
+function recordRows(){
+  const f=S.rec,q=f.q.trim().toLowerCase(),out=[];
+  const cls=f.cls==="cur"?[S.cls]:classesList();
+  cls.forEach(c=>{const stus=studentsOf(c);itemsOf(c).forEach(i=>{
+    if(f.type!=="all"&&typeKey(i)!==f.type)return;
+    if(f.from&&(i.date||"")<f.from)return; if(f.to&&(i.date||"")>f.to)return;
+    stus.forEach(s=>{if(q&&!s.name.toLowerCase().includes(q))return;
+      const r=res(i,s.id),st=status(i,s.id),mks=kindOf(i)==="score"?makeups(r):[],lg=logs(r);
+      if(f.only==="mk"&&!mks.length)return; if(f.only==="out"&&!st.out)return;
+      out.push({i,s,r,st,mks,lg,c})})});
+    if(f.type!=="all"&&f.type!=="makeup")return;
+    if(f.only==="mk")return;
+    stus.forEach(s=>{if(q&&!s.name.toLowerCase().includes(q))return;
+      makeupsOf(s,true).forEach(m=>{const i=mkItem(m);if(f.from&&(i.date||"")<f.from)return;if(f.to&&(i.date||"")>f.to)return;
+        const st=status(i,s.id);if(f.only==="out"&&!st.out)return;
+        const lg=[{a:"mkc",at:m.createdAt,by:m.createdBy}];if(m.done)lg.push({a:"mkd",at:m.doneAt||m.createdAt,by:m.doneBy,date:m.doneDate});
+        out.push({i,s,r:{},st,mks:[],lg,c})})})});
+  out.sort((a,b)=>(b.i.date||"").localeCompare(a.i.date||""));
+  return out;
+}
+function vRecords(){
+  if(!S.items.length&&!(S.makeups||[]).length)return emptyBox("還沒有任何紀錄","新增評量並登記成績後，所有紀錄都會出現在這裡。");
+  const f=S.rec,rows=recordRows();
+  wantNames(rows.flatMap(x=>x.lg.map(l=>l.by)));
+  const body=rows.map(x=>{const{i,s,r,st,mks,lg}=x,t=typeOf(i),key=i.id+"|"+s.id,open=S.openLog===key,last=lg[lg.length-1];
+    const orig=i._mk?`<span class="pill p-abs">缺課</span>`:kindOf(i)==="score"?(r.st==="absent"?`<span class="pill p-abs">缺考</span>`:(r.sc??"—")):({done:"完成",absent:"請假"}[r.st]||"未交");
+    const mkTxt=i._mk?(i._mk.done?`<div>${md(i._mk.doneDate)}　<b>已補課</b></div>`:i._mk.planDate?`<div class="sub">預計 ${md(i._mk.planDate)}</div>`:`<span class="sub">—</span>`):mks.length?mks.map(m=>`<div>${md(m.date)}　<b>${esc(m.sc)}</b></div>`).join(""):`<span class="sub">—</span>`;
+    return `<tr class="${open?"open":""}"><td><b>${esc(s.name)}</b><div class="sub">${esc(x.c)}</div></td><td><span class="tag" style="${cv(t.color)}">${t.label}</span> ${i._mk?`<span class="mkc">${esc(i.title)}</span>`:esc(i.title)}</td>
+      <td class="mono">${esc(i.date||"")}</td><td class="mono">${orig}</td><td class="mono">${mkTxt}</td><td><span class="pill p-${st.c}">${esc(st.l)}</span></td>
+      <td class="sub">${last?`${fmtTs(last.at)}<br>${esc(who(last.by))}`:"—"}</td><td>${lg.length?`<button class="btn sm" data-log="${key}" aria-expanded="${open}">${open?"收起":"歷程 "+lg.length}</button>`:""}</td></tr>
+      ${open?`<tr class="logrow"><td colspan="8"><div class="logs">${lg.map(l=>`<div class="lg"><span class="mono">${fmtTs(l.at)}</span><span>${esc(logText(l,i))}</span><span class="sub">${esc(who(l.by))}</span></div>`).join("")}</div></td></tr>`:""}`}).join("");
+  return `<section class="card stack"><div class="row between"><div><div class="label">考試紀錄</div><h2>所有登記紀錄 <span class="sub">${rows.length} 筆</span></h2></div><button class="btn sky sm" id="dlRec" ${rows.length?"":"disabled"}>下載這些紀錄</button></div>
+    <div class="filters">
+      <select id="rCls" aria-label="班級"><option value="cur" ${f.cls==="cur"?"selected":""}>${esc(S.cls||"目前班級")}</option><option value="all" ${f.cls==="all"?"selected":""}>全部班級</option></select>
+      <select id="rType" aria-label="類型"><option value="all">全部類型</option>${typeOptions().map(([v,l])=>`<option value="${esc(v)}" ${f.type===v?"selected":""}>${esc(l)}</option>`).join("")}</select>
+      <select id="rOnly" aria-label="狀態"><option value="all">全部</option><option value="mk" ${f.only==="mk"?"selected":""}>有補考的</option><option value="out" ${f.only==="out"?"selected":""}>尚未完成的</option></select>
+      <input id="rQ" type="search" data-k="rq" data-keepv="1" placeholder="學生姓名" value="${esc(f.q)}">
+      <span class="row" style="gap:6px"><span class="sub">考試日期</span>${dateField("rFrom",f.from,"",true)}<span class="sub">到</span>${dateField("rTo",f.to,"",true)}</span>
+      ${(f.cls!=="all"||f.type!=="all"||f.q||f.from||f.to||f.only!=="all")?`<button class="btn sm" id="rClear">清除篩選</button>`:""}
+    </div>
+    ${rows.length?`<div class="scroll"><table class="tbl rec"><thead><tr><th>學生</th><th>評量</th><th>考試日期</th><th>原始成績</th><th>補考／補課</th><th>目前結果</th><th>最後登記</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`:`<div class="empty">沒有符合條件的紀錄</div>`}
+  </section>`;
+}
+function recordsCsv(){const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const head=["班級","學生","類型","評量","考試日期","原始成績","補考紀錄","目前結果","登記歷程"];
+  const lines=recordRows().map(({i,s,r,st,mks,lg,c})=>[c,s.name,typeOf(i).label,i.title,i.date,i._mk?"缺課":kindOf(i)==="score"?(r.st==="absent"?"缺考":(r.sc??"")):({done:"完成",absent:"請假"}[r.st]||"未交"),
+    i._mk?(i._mk.done?`${i._mk.doneDate} 已補課`:(i._mk.planDate?`預計 ${i._mk.planDate}`:"")):mks.map(m=>`${m.date} 補考 ${m.sc}`).join("；"),st.l,lg.map(l=>`${fmtTs(l.at)} ${logText(l,i)}（${who(l.by)}）`).join("；")]);
+  return "﻿"+[head,...lines].map(r=>r.map(q).join(",")).join("\r\n")}
+
+function vRoster(){
+  const cl=classesList(),stus=S.cls?studentsOf(S.cls):[],ro=S.readOnly;
+  const rows=stus.map(s=>`<div class="edit-row">
+     <input class="seatin" type="text" inputmode="numeric" data-k="seat-${s.id}" data-keepv="1" data-edit="seat" data-id="${s.id}" value="${esc(s.seat??"")}" aria-label="座號" ${ro?"disabled":""}>
+     <input type="text" data-k="name-${s.id}" data-keepv="1" data-edit="name" data-id="${s.id}" value="${esc(s.name)}" aria-label="姓名" ${ro?"disabled":""}>
+     <input class="clsin" type="text" list="clsList" data-k="cls-${s.id}" data-keepv="1" data-edit="cls" data-id="${s.id}" value="${esc(s.cls)}" aria-label="班級" ${ro?"disabled":""}>
+     ${ro?"<span></span>":`<button class="btn sm danger" data-dels="${s.id}" aria-label="移除 ${esc(s.name)}">移除</button>`}</div>`).join("");
+  return `<datalist id="clsList">${cl.map(c=>`<option value="${esc(c)}">`).join("")}</datalist><div class="cols">
+    <div class="stack" style="gap:18px"><section class="card stack"><h3>新增學生</h3>
+    ${ro?`<div class="sub">沒有編輯權限</div>`:`<form id="addStu" class="stack" autocomplete="off"><label class="label" for="asCls">班級（新班級直接輸入）</label>
+      <input id="asCls" type="text" list="clsList" value="${esc(S.cls||"")}" placeholder="例：K3、E5、H7" required>
+      <label class="label" for="asNames">姓名（一行一位，可整批貼上）</label><textarea id="asNames" placeholder="王小明&#10;陳Amy&#10;林Kevin" required></textarea>
+      <button class="btn primary" type="submit">加入名單</button></form>`}</section>
+    <section class="card stack"><h3>下載資料</h3><div class="sub">成績表可用 Excel 開啟；備份檔保存所有班級資料。</div>
+      <div class="row"><button class="btn sky sm" id="dlCsv" ${S.cls?"":"disabled"}>下載 ${esc(S.cls||"")} 成績表</button><button class="btn sm" id="dlJson">下載完整備份</button>${ro?"":`<label class="btn sm" style="cursor:pointer">匯入備份<input type="file" id="impJson" accept=".json,application/json" hidden></label>`}</div></section></div>
+    <div class="stack" style="gap:18px">
+    <section class="card stack"><div class="row between"><div><div class="label">名單</div><h2>${S.cls?esc(S.cls):"尚無班級"} <span class="sub">${stus.length} 人</span></h2></div>
+      ${S.cls&&!ro?`<button class="btn sm" id="renCls">更改班級名稱</button>`:""}</div>
+      <div id="renBox" hidden class="row"><input id="renClsIn" type="text" class="grow" value="${esc(S.cls||"")}" aria-label="新班級名稱"><button class="btn sm primary" id="renClsSave">儲存</button><button class="btn sm" id="renClsCancel">取消</button></div>
+      ${stus.length?`<div class="hint">直接點欄位修改座號、姓名或班級，離開欄位就會儲存。改班級欄可把學生轉到別班。</div>
+      <div><div class="edit-row edit-head"><span>座號</span><span>姓名</span><span class="hc">班級</span><span></span></div>${rows}</div>`:`<div class="empty">左邊輸入班級與姓名即可建立名單</div>`}
+    </section>${safetyHtml(ro)}</div></div>`;
+}
+
+
+
+
+/* ---------------- 補課 ---------------- */
+function pendingMkHtml(cs){
+  const list=[];cs.forEach(c=>studentsOf(c).forEach(st=>makeupsOf(st).forEach(m=>list.push({m,st,c}))));
+  list.sort((a,b)=>(a.m.missDate||"").localeCompare(b.m.missDate||""));
+  return `<section class="card stack" style="margin-top:18px"><div class="row between"><div><div class="label">補課</div><h2>${list.length?`還有 ${list.length} 筆補課待完成`:"補課都完成了"}</h2></div>${list.length?`<button class="btn sm sky" data-tab="makeup">到補課分頁</button>`:""}</div>
+    ${list.length?`<div class="scroll"><table class="tbl"><thead><tr><th>學生</th>${cs.length>1?"<th>班級</th>":""}<th>缺課日期</th><th>缺課內容</th><th>預計補課</th></tr></thead><tbody>${list.map(({m,st,c})=>`<tr>
+      <td><b>${esc(st.name)}</b></td>${cs.length>1?`<td><span class="tag" style="${cv(clsColor(c))}">${esc(c)}</span></td>`:""}<td class="mono">${esc(fmtD(m.missDate))}</td>
+      <td><div class="mkc">${esc(m.content||"—")}</div>${m.note?`<div class="sub mknote">${esc(m.note)}</div>`:""}</td><td class="mono">${m.planDate?esc(fmtD(m.planDate)):`<span class="sub">未定</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">目前沒有待補課的學生</div>`}</section>`;
+}
+function vMakeup(){
+  if(!S.cls||S.cls==="__all")return emptyBox("先選一個班級","上方點選班級後，就能登記補課。");
+  const stus=studentsOf(S.cls),ids=new Set(stus.map(x=>x.id)),ro=S.readOnly;
+  const all=(S.makeups||[]).filter(m=>ids.has(m.sid)).sort((a,b)=>(a.done-b.done)||(b.missDate||"").localeCompare(a.missDate||""));
+  const list=all.filter(m=>S.mkf==="all"||(S.mkf==="done"?m.done:!m.done));
+  const nm=id=>stus.find(x=>x.id===id)?.name||"";
+  const rows=list.map(m=>`<div class="mkrow ${m.done?"done":""}">
+     <div class="mkmain"><b>${esc(nm(m.sid))}</b><span class="sub">缺課 ${esc(fmtD(m.missDate))}</span><div class="mkc">${esc(m.content||"（未填內容）")}</div>${ro?"":`<button class="linkbtn" data-mkedit="${m.id}">修改內容</button>`}${m.note?`<div class="sub mknote">${esc(m.note)}</div>`:""}</div>
+     <div class="mkside">${m.done?`<span class="pill p-ok">已補課</span><span class="sub">補課日期</span>${dateField("mkdone-"+m.id,m.doneDate||"","",false)}`
+       :`<span class="pill p-miss">未補課</span><span class="sub">預計補課</span>${dateField("mkplan-"+m.id,m.planDate||"","",true)}`}
+     ${ro?"":`<div class="row" style="gap:4px;justify-content:flex-end">${m.done?`<button class="btn sm" data-mkundo="${m.id}">改回未補</button>`:`<button class="btn sm mint" data-mkdone="${m.id}">補完了</button>`}<button class="btn sm danger" data-mkdel2="${m.id}">刪除</button></div>`}</div></div>`).join("");
+  const todo=all.filter(m=>!m.done).length;
+  return `<div class="cols"><section class="card stack"><h3>登記缺課</h3>
+    ${ro?`<div class="sub">沒有編輯權限</div>`:stus.length?`<form id="mkNew" class="stack" autocomplete="off">
+      <label class="label" for="mkStu">學生</label><select id="mkStu" required>${stus.map(x=>`<option value="${x.id}">${esc((x.seat?x.seat+" ":"")+x.name)}</option>`).join("")}</select>
+      <span class="label">缺課日期</span>${dateField("mkMiss",todayStr())}
+      <label class="label" for="mkContent">缺課內容</label><textarea id="mkContent" data-k="mkContent" data-keepv="1" rows="5" placeholder="例：Unit 3 Lesson 2、課本 p.24-26、習作第 5 頁，可以分多行寫"></textarea>
+      <span class="label">預計補課日期（可空白）</span>${dateField("mkPlan","","",true)}
+      <label class="label" for="mkNote">備註（可空白）</label><textarea id="mkNote" data-k="mkNote" data-keepv="1" rows="3" placeholder="例：請家長週三 5 點帶來"></textarea>
+      <button class="btn primary" type="submit">新增補課</button></form>`:`<div class="sub">這個班級還沒有學生</div>`}</section>
+    <section class="card stack"><div class="row between"><div><div class="label">${esc(S.cls)}</div><h2>${todo?`還有 ${todo} 筆補課`:"補課都完成了"}</h2></div>
+      <div class="seg mkf">${[["todo","未補課"],["done","已補課"],["all","全部"]].map(([v,l])=>`<button data-mkf="${v}" aria-pressed="${S.mkf===v}">${l}</button>`).join("")}</div></div>
+      ${rows||`<div class="empty">${S.mkf==="todo"?"目前沒有待補課的學生":"沒有紀錄"}</div>`}</section></div>`;
+}
+
+/* ---------------- 類型清單與日曆 ---------------- */
+const typeKey=i=>i.type==="other"?"other:"+(i.typeName||""):i.type;
+function typeOptions(){const used=new Map();TYPES.filter(t=>t[0]!=="other").forEach(t=>used.set(t[0],t[1]));
+  S.items.forEach(i=>{const k=typeKey(i);if(!used.has(k))used.set(k,typeOf(i).label)});used.set("makeup","補課");return [...used]}
+const WD=["日","一","二","三","四","五","六"];
+const fmtD=v=>{if(!v)return "";const d=new Date(v+"T00:00");return `${v.replace(/-/g,"/")}（${WD[d.getDay()]}）`};
+function dateField(id,val,cls="",clearable=false){return `<span class="dfield"><input type="hidden" id="${id}" class="${cls}" value="${esc(val||"")}"><button type="button" class="dbtn ${val?"":"empty"}" data-dp="${id}" data-clear="${clearable?1:""}"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="14" height="13" rx="3"/><path d="M3 8h14M7 2.5v3M13 2.5v3"/></svg><span>${val?fmtD(val):"選擇日期"}</span></button></span>`}
+const DP={id:null,y:0,m:0,clear:false};
+function openDP(btn){const id=btn.dataset.dp,v=document.getElementById(id).value||todayStr(),[y,m]=v.split("-").map(Number);
+  Object.assign(DP,{id,y,m:m-1,clear:!!btn.dataset.clear,anchor:btn});drawDP();
+  const r=btn.getBoundingClientRect(),el=$("#dp"),w=292;el.hidden=false;
+  let left=Math.min(Math.max(8,r.left),window.innerWidth-w-8),top=r.bottom+6;if(top+330>window.innerHeight)top=Math.max(8,r.top-336);
+  el.style.left=left+"px";el.style.top=top+"px"}
+function drawDP(){const cur=document.getElementById(DP.id)?.value||"",first=new Date(DP.y,DP.m,1),days=new Date(DP.y,DP.m+1,0).getDate(),t=todayStr();
+  let cells="";for(let i=0;i<first.getDay();i++)cells+="<span></span>";
+  for(let d=1;d<=days;d++){const v=`${DP.y}-${pad(DP.m+1)}-${pad(d)}`,wd=(first.getDay()+d-1)%7;cells+=`<button type="button" data-dpday="${v}" class="${v===cur?"sel":""} ${v===t?"today":""} ${wd===0||wd===6?"we":""}">${d}</button>`}
+  $("#dp").innerHTML=`<div class="dph"><button type="button" data-dpnav="-1" aria-label="上個月">‹</button><b>${DP.y} 年 ${DP.m+1} 月</b><button type="button" data-dpnav="1" aria-label="下個月">›</button></div>
+    <div class="dpw">${WD.map(w=>`<span>${w}</span>`).join("")}</div><div class="dpg">${cells}</div>
+    <div class="dpf"><button type="button" data-dpday="${t}">今天</button>${DP.clear?`<button type="button" data-dpday="">清除</button>`:""}</div>`}
+function pickDP(v){const inp=document.getElementById(DP.id);if(!inp)return;inp.value=v;const b=document.querySelector(`[data-dp="${CSS.escape(DP.id)}"]`);
+  if(b){b.querySelector("span").textContent=v?fmtD(v):"選擇日期";b.classList.toggle("empty",!v)}$("#dp").hidden=true;inp.dispatchEvent(new Event("change",{bubbles:true}))}
+document.addEventListener("click",e=>{const b=e.target.closest("button");
+  if(b&&b.dataset.dp){e.stopPropagation();if(!$("#dp").hidden&&DP.id===b.dataset.dp){$("#dp").hidden=true}else openDP(b);return}
+  if(b&&b.dataset.dpnav!==undefined){e.stopPropagation();DP.m+=Number(b.dataset.dpnav);if(DP.m<0){DP.m=11;DP.y--}if(DP.m>11){DP.m=0;DP.y++}drawDP();return}
+  if(b&&b.dataset.dpday!==undefined){e.stopPropagation();pickDP(b.dataset.dpday);return}
+  if(!e.target.closest("#dp"))$("#dp").hidden=true},true);
+window.addEventListener("scroll",()=>{$("#dp").hidden=true},{passive:true});
+
+/* ---------------- 資料保護：回收桶＋每日自動備份 ---------------- */
+S.allS=[];S.allI=[];S.allM=[];S.makeups=[];S.mkf="todo";S.backups=null;let backupTried=false;
+const BK_KEEP=14,BK_CHUNK=60000;
+async function loadBackups(){try{const d=await Store.getAll("backups");const by={};d.forEach(x=>{(by[x.date]=by[x.date]||[]).push(x)});
+  S.backups=Object.entries(by).map(([date,parts])=>({date,parts:parts.sort((a,b)=>a.part-b.part),at:parts[0].at,students:parts[0].nS,items:parts[0].nI,complete:parts.length===parts[0].total})).sort((a,b)=>b.date.localeCompare(a.date));}catch(_){S.backups=S.backups||[]}}
+async function writeBackup(date){
+  const json=JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM});const n=Math.max(1,Math.ceil(json.length/BK_CHUNK)),at=Date.now();
+  for(let i=0;i<n;i++)await Store.set("backups",`${date}_${i}`,{date,part:i,total:n,json:json.slice(i*BK_CHUNK,(i+1)*BK_CHUNK),at,by:ME||null,nS:S.allS.filter(x=>!x.deleted).length,nI:S.allI.filter(x=>!x.deleted).length});
+}
+async function pruneBackups(){const old=(S.backups||[]).slice(BK_KEEP);for(const b of old)for(const p of b.parts)await Store.del("backups",p.id)}
+async function maybeBackup(){
+  if(backupTried||S.readOnly||!S.ready.s||!S.ready.i)return;backupTried=true;
+  await loadBackups();const today=todayStr();
+  if(!(S.allS.length||S.allI.length)){render();return}
+  if(!(S.backups||[]).some(b=>b.date===today&&b.complete)){try{await writeBackup(today);await loadBackups();await pruneBackups();await loadBackups()}catch(_){}}
+  render();
+}
+function backupData(b){return JSON.parse(b.parts.map(p=>p.json).join(""))}
+async function restoreBackup(date){
+  const b=(S.backups||[]).find(x=>x.date===date);if(!b||!b.complete){toast("這份備份不完整，無法還原");return}
+  if(!await ask(`把資料還原到 ${date} 的備份？那天之後輸入的成績會被覆蓋（之後新增的學生和評量會保留）。建議先按「下載完整備份」留一份現在的資料。`,"確定還原"))return;
+  const data=backupData(b),strip=o=>{const{id,...r}=o;return r};
+  safe(async()=>{for(const x of data.students||[])await Store.set("students",x.id,strip(x));for(const x of data.items||[])await Store.set("items",x.id,strip(x));for(const x of data.makeups||[])await Store.set("makeups",x.id,strip(x))},`已還原到 ${date}`);
+}
+function safetyHtml(ro){
+  const stuName=id=>S.allS.find(x=>x.id===id)?.name||"學生";
+  const tr=[...S.allM.filter(x=>x.deleted).map(x=>({c:"makeups",x,label:"補課",name:`${stuName(x.sid)} ${md(x.missDate)} ${x.content||""}`})),...S.allS.filter(x=>x.deleted).map(x=>({c:"students",x,label:"學生",name:`${x.name}（${x.cls}）`})),...S.allI.filter(x=>x.deleted).map(x=>({c:"items",x,label:typeOf(x).label,name:`${x.title}（${x.cls}）`}))].sort((a,b)=>(b.x.deletedAt||0)-(a.x.deletedAt||0));
+  const bk=S.backups;
+  return `<section class="card stack"><h3>回收桶 <span class="sub">${tr.length} 筆</span></h3><div class="sub">刪除的學生和評量會先放在這裡，資料都還在，可以隨時救回。</div>
+    ${tr.length?`<div class="hist">${tr.map(t=>`<div class="hrow" style="grid-template-columns:auto minmax(0,1fr) auto"><span class="tag" style="${cv(t.c==="students"?"sky":"grape")}">${esc(t.label)}</span><span class="tt">${esc(t.name)}<div class="sub">${t.x.deletedAt?fmtTs(t.x.deletedAt)+" 刪除":""}</div></span>${ro?"":`<span class="row" style="gap:4px"><button class="btn sm mint" data-restore="${t.c}|${t.x.id}">救回</button><button class="btn sm danger" data-purge="${t.c}|${t.x.id}">永久刪除</button></span>`}</div>`).join("")}</div>`:`<div class="sub">回收桶是空的</div>`}
+  </section>
+  <section class="card stack"><h3>每日自動備份</h3><div class="sub">每天第一次有老師登入時，會自動備份全部資料，保留最近 ${BK_KEEP} 天。</div>
+    ${bk==null?`<div class="sub">讀取中…</div>`:bk.length?`<div class="hist">${bk.map(b=>`<div class="hrow" style="grid-template-columns:auto minmax(0,1fr) auto"><span class="d" style="font-size:14px">${esc(b.date.replace(/-/g,"/"))}</span><span class="tt sub">${b.students??"?"} 位學生 · ${b.items??"?"} 個評量${b.complete?"":"（不完整）"}</span><span class="row" style="gap:4px"><button class="btn sm" data-bkdl="${b.date}">下載</button>${ro?"":`<button class="btn sm sky" data-bkrestore="${b.date}">還原</button>`}</span></div>`).join("")}</div>`:`<div class="sub">還沒有備份，輸入資料後會自動產生</div>`}
+  </section>`;
+}
+
+/* ---------------- 上傳到其他 App（只給老師看） ---------------- */
+const upStale=i=>i.uploaded&&i.updatedAt&&i.updatedAt>i.uploaded.at+1000;
+function upChip(i){if(!i.uploaded)return `<span class="upchip">未上傳</span>`;return upStale(i)?`<span class="upchip stale">需重傳</span>`:`<span class="upchip on">已上傳</span>`}
+function upBar(i){const u=i.uploaded,ro=S.readOnly?"disabled":"";if(u)wantNames([u.by]);
+  return `<div class="upbar ${u?"on":""}"><div class="ut"><span class="ic">${u?"✓":"↑"}</span><div>${u?`已上傳到 App<div class="sub" style="font-weight:400">${fmtTs(u.at)} · ${esc(who(u.by))}</div>`:`尚未上傳到 App<div class="sub" style="font-weight:400">上傳完成後按右邊的按鈕記錄</div>`}${upStale(i)?`<div class="warn">上傳後成績有更動，記得重新上傳</div>`:""}</div></div>
+    <button class="btn sm ${u?"":"mint"}" id="upToggle" ${ro}>${u?(upStale(i)?"已重新上傳":"取消標記"):"標記已上傳"}</button></div>`}
+
+/* ---------------- 家長通知卡 ---------------- */
+const CARD={sid:null,msg:"請協助孩子盡快完成補考、補交和補課，謝謝您！"};
+try{const m=localStorage.getItem("gb.cardmsg");if(m)CARD.msg=m}catch(_){}
+const CC={pink:"#f2477e",yellow:"#f5a800",mint:"#14a898",sky:"#3b82f6",grape:"#8b5cf6",orange:"#f97316",ink:"#2a1f3d",muted:"#7c7090",line:"#efe5f4",red:"#e2334f",redS:"#ffe0e6",ok:"#0f9a6e",okS:"#d6f4e6",amber:"#c27a00",amberS:"#fff0cc",sunk:"#f6f3fa",
+  pinkS:"#ffe2ec",yellowS:"#fff1c7",mintS:"#d6f5f0",skyS:"#dfeaff",grapeS:"#ece4ff",orangeS:"#ffe7d6"};
+const FB='"Chiron GoRound TC","PingFang TC","Microsoft JhengHei",sans-serif',FN='"Fredoka","Chiron GoRound TC",sans-serif';
+let fontsReady=null;
+function loadFonts(){if(!fontsReady)fontsReady=Promise.all(["800 40px","700 30px","400 26px"].map(w=>document.fonts.load(`${w} "Chiron GoRound TC"`,"學習進度通知待補項目")).concat(document.fonts.load('600 40px "Fredoka"',"0123456789"))).catch(()=>{});return fontsReady}
+function rr(x,c,y,w,h,r,fill){x.beginPath();x.roundRect?x.roundRect(c,y,w,h,r):x.rect(c,y,w,h);x.fillStyle=fill;x.fill()}
+function wrap(x,text,maxW){const out=[];let line="";for(const ch of String(text)){if(x.measureText(line+ch).width>maxW&&line){out.push(line);line=ch}else line+=ch}if(line)out.push(line);return out}
+function cardData(s){
+  const its=itemsOf(s.cls),out=outstanding(s);
+  const done=its.filter(i=>!status(i,s.id).out&&kindOf(i)==="score").slice(0,5);
+  return{out,done};
+}
+function drawCard(s,msg){
+  const W=1080,P=72,cv=document.createElement("canvas"),x=cv.getContext("2d");
+  const {out,done}=cardData(s);
+  // 先估高度
+  x.font=`700 30px ${FB}`;
+  const lines=out.map(i=>wrap(x,i.title,W-P*2-330));
+  const dLines=done.map(i=>wrap(x,i.title,W-P*2-330));
+  x.font=`400 28px ${FB}`;const mLines=msg?wrap(x,msg,W-P*2-64):[];
+  let H=380+(out.length?110+lines.reduce((a,l)=>a+74+l.length*40,0):190)+(done.length?100+dLines.reduce((a,l)=>a+30+l.length*40,0):0)+(mLines.length?64+mLines.length*42:0)+130;
+  cv.width=W;cv.height=H;
+  x.fillStyle="#fff";x.fillRect(0,0,W,H);
+  // 彩虹條
+  ["pink","yellow","mint","sky","grape"].forEach((c,i)=>{x.fillStyle=CC[c];x.fillRect(i*W/5,0,W/5+1,18)});
+  // ABC
+  [["A","pink",-8],["B","yellow",5],["C","mint",-4]].forEach(([t,c,r],i)=>{x.save();x.translate(P+30+i*68,98+(i===1?6:0));x.rotate(r*Math.PI/180);rr(x,-28,-28,56,56,16,CC[c]);x.fillStyle="#fff";x.font=`600 32px ${FN}`;x.textAlign="center";x.textBaseline="middle";x.fillText(t,0,2);x.restore()});
+  x.textBaseline="alphabetic";x.textAlign="left";
+  x.fillStyle=CC.grape;x.font=`600 24px ${FN}`;x.fillText("PARENT NOTICE",P+230,84);
+  x.fillStyle=CC.ink;x.font=`800 44px ${FB}`;x.fillText("學習進度通知",P+230,134);
+  // 學生
+  let y=196;rr(x,P,y,W-P*2,140,32,CC.sunk);
+  x.fillStyle=CC.ink;x.font=`800 50px ${FB}`;x.fillText(s.name,P+40,y+82);
+  const nw=x.measureText(s.name).width;
+  x.font=`700 26px ${FB}`;const ct=s.cls+(s.seat?` · ${s.seat} 號`:"");const cw=x.measureText(ct).width+36;
+  rr(x,P+40+nw+20,y+46,cw,46,23,"#fff");x.fillStyle=CC.grape;x.fillText(ct,P+40+nw+38,y+79);
+  x.textAlign="right";x.fillStyle=CC.muted;x.font=`400 24px ${FB}`;x.fillText("製表日期",W-P-40,y+60);
+  x.fillStyle=CC.ink;x.font=`600 30px ${FN}`;x.fillText(todayStr().replace(/-/g,"/"),W-P-40,y+100);x.textAlign="left";
+  y+=214;
+  if(out.length){
+    x.fillStyle=CC.red;x.font=`800 34px ${FB}`;x.fillText("待補項目",P,y);
+    const tw=x.measureText("待補項目").width;rr(x,P+tw+16,y-34,64,44,22,CC.red);x.fillStyle="#fff";x.font=`600 30px ${FN}`;x.textAlign="center";x.fillText(out.length,P+tw+48,y-2);x.textAlign="left";
+    y+=30;
+    out.forEach((i,ix)=>{const st=status(i,s.id),t=typeOf(i),ls=lines[ix],h=60+ls.length*40;
+      rr(x,P,y,W-P*2,h,24,CC.redS);
+      const tagW=(()=>{x.font=`700 22px ${FB}`;return x.measureText(t.label).width+28})();
+      rr(x,P+28,y+30,tagW,38,12,CC[t.color+"S"]||CC.sunk);x.fillStyle=CC[t.color];x.fillText(t.label,P+42,y+57);
+      x.fillStyle=CC.ink;x.font=`700 30px ${FB}`;ls.forEach((l,k)=>x.fillText(l,P+48+tagW,y+60+k*40));
+      x.textAlign="right";x.fillStyle=CC.muted;x.font=`500 22px ${FN}`;x.fillText(md(i.date),W-P-28,y+42);
+      x.fillStyle=st.c==="abs"?CC.amber:CC.red;x.font=`700 26px ${FB}`;x.fillText(st.l,W-P-28,y+80);x.textAlign="left";
+      y+=h+14});
+    y+=40;
+  }else{
+    rr(x,P,y-10,W-P*2,150,32,CC.okS);x.fillStyle=CC.ok;x.font=`800 44px ${FB}`;x.textAlign="center";x.fillText("全部完成，太棒了！",W/2,y+80);x.textAlign="left";y+=210;
+  }
+  if(done.length){
+    x.fillStyle=CC.ink;x.font=`800 30px ${FB}`;x.fillText("近期考試成績",P,y);y+=24;
+    done.forEach((i,ix)=>{const st=status(i,s.id),ls=dLines[ix];x.strokeStyle=CC.line;x.lineWidth=2;
+      x.fillStyle=CC.muted;x.font=`500 24px ${FN}`;x.fillText(md(i.date),P,y+44);
+      x.fillStyle=CC.ink;x.font=`700 30px ${FB}`;ls.forEach((l,k)=>x.fillText(l,P+110,y+44+k*40));
+      x.textAlign="right";x.fillStyle=st.mk?CC.grape:CC.ok;x.font=`600 36px ${FN}`;x.fillText(String(st.sc)+(i.full?` / ${i.full}`:""),W-P,y+46);
+      if(st.mk){x.font=`700 20px ${FB}`;x.fillText("補考",W-P,y+72)}x.textAlign="left";
+      const h=30+ls.length*40;y+=h;x.beginPath();x.setLineDash([4,8]);x.moveTo(P,y+10);x.lineTo(W-P,y+10);x.stroke();x.setLineDash([]);y+=10});
+    y+=56;
+  }
+  if(mLines.length){const h=36+mLines.length*42;rr(x,P,y,W-P*2,h,24,CC.skyS);x.fillStyle=CC.ink;x.font=`400 28px ${FB}`;mLines.forEach((l,k)=>x.fillText(l,P+32,y+48+k*42));y+=h+28}
+  x.fillStyle=CC.muted;x.font=`400 22px ${FB}`;x.textAlign="center";x.fillText("此通知由老師登記系統產生",W/2,H-48);
+  return cv;
+}
+async function openCard(sid){CARD.sid=sid;await loadFonts();renderCard()}
+function renderCard(){const s=S.students.find(x=>x.id===CARD.sid);if(!s)return;
+  const cv=drawCard(s,CARD.msg);$("#cardImg").src=cv.toDataURL("image/png");$("#cardName").textContent=s.name+" 的家長通知卡";
+  const list=studentsOf(s.cls),ix=list.findIndex(x=>x.id===s.id);$("#cardPrev").disabled=ix<=0;$("#cardNext").disabled=ix>=list.length-1;
+  $("#cardPos").textContent=`${ix+1} / ${list.length}`;$("#cardMsg").value=CARD.msg;$("#cardModal").hidden=false}
+async function saveCard(){const s=S.students.find(x=>x.id===CARD.sid);const cv=drawCard(s,CARD.msg);
+  const blob=await new Promise(r=>cv.toBlob(r,"image/png"));
+  download(`${s.cls}_${s.name}_通知卡.png`,blob,"image/png")}
+async function copyCard(){const s=S.students.find(x=>x.id===CARD.sid);const cv=drawCard(s,CARD.msg);
+  try{const blob=await new Promise(r=>cv.toBlob(r,"image/png"));await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);toast("圖片已複製，可直接貼到 LINE")}catch(e){toast("這個瀏覽器不支援複製圖片，請用「下載圖片」")}}
+async function zipClass(c,onlyOut){
+  if(!window.JSZip){toast("壓縮功能載入失敗，請重新整理");return}
+  await loadFonts();const zip=new JSZip();let n=0;
+  studentsOf(c).forEach(s=>{if(onlyOut&&!outstanding(s).length)return;const url=drawCard(s,CARD.msg).toDataURL("image/png");zip.file(`${String(s.seat||"").padStart(2,"0")}_${s.name}.png`,url.split(",")[1],{base64:true});n++});
+  if(!n){toast("這班目前沒有待補的學生");return}
+  const blob=await zip.generateAsync({type:"blob"});download(`${c}_家長通知卡_${todayStr()}.zip`,blob,"application/zip")}
+
+/* ---------------- 匯出 ---------------- */
+function stuText(s){const out=outstanding(s);return `${s.name}（${s.cls}）待補 ${out.length} 項：\n`+(out.map(i=>`・${i.date?md(i.date)+" ":""}${i.title}（${status(i,s.id).l}）`).join("\n")||"・全部完成")}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast("已複製，可貼到 LINE")}catch(e){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("已複製")}catch(_){toast("請手動複製")}ta.remove()}}
+function download(name,text,type){const blob=text instanceof Blob?text:new Blob([text],{type});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("已下載 "+name)}
+function csvFor(c){const its=itemsOf(c).slice().reverse(),st=studentsOf(c);const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+  const head=["座號","姓名",...its.map(i=>`${i.date||""} ${typeOf(i).label} ${i.title}`),"待補數"];
+  const lines=st.map(s=>[s.seat||"",s.name,...its.map(i=>{const x=status(i,s.id);return x.c==="ok"?(kindOf(i)==="score"?x.l:"完成"):x.l}),outstanding(s).length]);
+  return "﻿"+[head,...lines].map(r=>r.map(q).join(",")).join("\r\n")}
+
+/* ---------------- 事件 ---------------- */
+const curItem=()=>S.items.find(i=>i.id===S.itemId);
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.tab){S.tab=b.dataset.tab;try{localStorage.setItem("gb.tab",S.tab)}catch(_){}return render()}
+  if(b.dataset.cls){S.cls=b.dataset.cls;S.itemId=null;S.stuId=null;S.mkOpen=null;try{localStorage.setItem("gb.cls",S.cls)}catch(_){}return render()}
+  if(b.hasAttribute("data-all")){S.cls=S.cls==="__all"?null:"__all";return render()}
+  if(b.dataset.item){S.itemId=b.dataset.item;S.mkOpen=null;return render()}
+  if(b.dataset.stu){S.stuId=b.dataset.stu;return render()}
+  if(b.dataset.go){const s=S.students.find(x=>x.id===b.dataset.go);S.cls=s.cls;S.stuId=s.id;S.q="";S.tab="student";return render()}
+  if(b.dataset.stulog){const s=S.students.find(x=>x.id===b.dataset.stulog);S.cls=s.cls;S.rec={cls:"cur",type:"all",q:s.name,from:"",to:"",only:"all"};S.tab="records";return render()}
+  if(b.dataset.mkedit){const m=S.makeups.find(x=>x.id===b.dataset.mkedit);const box=b.closest(".mkmain");
+    box.querySelector(".mkc").outerHTML=`<textarea class="mkedit" rows="5" style="width:100%">${esc(m.content||"")}</textarea><textarea class="mkeditn" rows="2" style="width:100%" placeholder="備註">${esc(m.note||"")}</textarea>`;
+    b.outerHTML=`<div class="row" style="gap:6px"><button class="btn sm primary" data-mksave="${m.id}">儲存</button><button class="btn sm" data-tab="makeup">取消</button></div>`;box.querySelector(".mknote")?.remove();box.querySelector(".mkedit").focus();return}
+  if(b.dataset.mksave){const box=b.closest(".mkmain");const c=box.querySelector(".mkedit").value.trim(),n=box.querySelector(".mkeditn").value.trim();
+    safe(()=>Store.update("makeups",b.dataset.mksave,{content:c,note:n}),"已更新補課內容");return}
+  if(b.dataset.mkf){S.mkf=b.dataset.mkf;return render()}
+  if(b.dataset.mkdone){safe(()=>Store.update("makeups",b.dataset.mkdone,{done:true,doneDate:todayStr(),doneAt:Date.now(),doneBy:ME||null}),"已標記補課完成");return}
+  if(b.dataset.mkundo){safe(()=>Store.update("makeups",b.dataset.mkundo,{done:false}),"已改回未補課");return}
+  if(b.dataset.mkdel2){if(await ask("刪除這筆補課紀錄？會先移到回收桶。"))safe(()=>Store.update("makeups",b.dataset.mkdel2,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶");return}
+  if(b.id==="rClear"){S.rec={cls:"all",type:"all",q:"",from:"",to:"",only:"all"};return render()}
+  if(b.dataset.log){S.openLog=S.openLog===b.dataset.log?null:b.dataset.log;return render()}
+  if(b.dataset.mk){const k=S.itemId+"|"+b.dataset.mk;S.mkOpen=S.mkOpen===k?null:k;render();const el=document.querySelector(`[data-k="mk-${b.dataset.mk}"]`);el&&el.focus();return}
+  if(b.dataset.mkdel){const[sid,k]=b.dataset.mkdel.split("|"),item=curItem(),m=(res(item,sid).mk||{})[k];
+    if(await ask(`刪除這筆補考成績（${m?.sc}）？`))patch(item.id,sid,{mk:{[k]:{...m,del:true}}},50,{a:"mkdel",v:m?.sc??null});return render()}
+  if(b.dataset.sid!==undefined&&b.dataset.st!==undefined){
+    const item=curItem(),sid=b.dataset.sid,cur=res(item,sid).st||"";let nv=b.dataset.st;
+    if(kindOf(item)==="score"){nv=cur==="absent"?"":"absent";const val={st:nv};if(nv==="absent")val.sc=null;patch(item.id,sid,val,150,{a:"absent",v:nv==="absent"})}
+    else{if(cur===nv)return;patch(item.id,sid,{st:nv},150,{a:"st",v:nv})}
+    return render()}
+  if(b.dataset.restore){const[c,id]=b.dataset.restore.split("|");safe(()=>Store.update(c,id,{deleted:false}),"已救回");return}
+  if(b.dataset.purge){const[c,id]=b.dataset.purge.split("|");if(await ask("永久刪除後就救不回來了（每日備份裡仍會保留一段時間）。確定嗎？","永久刪除"))safe(()=>Store.del(c,id),"已永久刪除");return}
+  if(b.dataset.bkdl){const bk=(S.backups||[]).find(x=>x.date===b.dataset.bkdl);if(bk)download(`登記簿自動備份_${bk.date}.json`,JSON.stringify(backupData(bk),null,1),"application/json");return}
+  if(b.dataset.bkrestore)return restoreBackup(b.dataset.bkrestore);
+  if(b.id==="upToggle"){const item=curItem();const on=!item.uploaded;const val=on?{at:Date.now(),by:ME||null}:null;item.uploaded=val;render();
+    safe(()=>Store.update("items",item.id,{uploaded:val}),on?"已標記「已上傳」":"已取消上傳標記");return}
+  if(b.id==="allDone"){const item=curItem();studentsOf(S.cls).forEach(s=>{if(!res(item,s.id).st)patch(item.id,s.id,{st:"done"},50,{a:"st",v:"done"})});return render()}
+  if(b.id==="delItem"){const item=curItem();if(await ask(`刪除「${item.title}」？會先移到回收桶，之後還能救回。`))safe(()=>Store.update("items",item.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶，可在「班級與學生」救回");return}
+  if(b.dataset.dels){const s=S.students.find(x=>x.id===b.dataset.dels);if(await ask(`把「${s.name}」從 ${s.cls} 名單移除？`,"確定移除"))safe(()=>Store.update("students",s.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶，可在「班級與學生」救回");return}
+  if(b.dataset.copy)return copy(stuText(S.students.find(x=>x.id===b.dataset.copy)));
+  if(b.id==="gLogin"){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err=>{if(err.code!=="auth/popup-closed-by-user")notice("<b>登入失敗：</b>"+esc(err.message))});return}
+  if(b.id==="logout"){auth.signOut();return}
+  if(b.dataset.card)return openCard(b.dataset.card);
+  if(b.id==="cardClose"){$("#cardModal").hidden=true;return}
+  if(b.id==="cardSave")return saveCard();
+  if(b.id==="cardCopy")return copyCard();
+  if(b.id==="cardPrev"||b.id==="cardNext"){const s=S.students.find(x=>x.id===CARD.sid),l=studentsOf(s.cls),i=l.findIndex(x=>x.id===s.id)+(b.id==="cardNext"?1:-1);if(l[i]){CARD.sid=l[i].id;renderCard()}return}
+  if(b.id==="zipCards"){toast("製作中…");return zipClass(S.cls,true)}
+  if(b.id==="copyAll"){const cs=S.cls==="__all"?classesList():[S.cls];const txt=cs.flatMap(c=>studentsOf(c).filter(s=>outstanding(s).length).map(stuText)).join("\n\n");return copy(txt||"全部完成")}
+  if(b.id==="renCls"){$("#renBox").hidden=false;$("#renClsIn").focus();return}
+  if(b.id==="renClsCancel"){$("#renBox").hidden=true;return}
+  if(b.id==="renClsSave"){const from=S.cls,to=$("#renClsIn").value.trim();if(!to||to===from){$("#renBox").hidden=true;return}
+    const ss=S.students.filter(s=>s.cls===from),is=S.items.filter(i=>i.cls===from);S.cls=to;try{localStorage.setItem("gb.cls",to)}catch(_){}
+    safe(async()=>{for(const s of ss)await Store.update("students",s.id,{cls:to});for(const i of is)await Store.update("items",i.id,{cls:to})},`已改名為 ${to}`);return}
+  if(b.id==="dlCsv")return download(`${S.cls}_成績表.csv`,csvFor(S.cls),"text/csv;charset=utf-8");
+  if(b.id==="dlRec")return download(`考試紀錄_${todayStr()}.csv`,recordsCsv(),"text/csv;charset=utf-8");
+  if(b.id==="dlJson")return download(`登記簿備份_${todayStr()}.json`,JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM},null,1),"application/json");
+});
+document.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.sc){const v=t.value.trim(),item=curItem(),sid=t.dataset.sc;const val={sc:v===""?null:Number(v)};if(res(item,sid).st==="absent"&&v!=="")val.st="";
+    patch(S.itemId,sid,val,700);
+    const row=t.closest(".srow"),st=status(item,sid),p=row.querySelector(".pill");p.className="pill p-"+st.c;p.textContent=st.l;
+    const ab=row.querySelector(".seg .abs");if(ab&&val.st==="")ab.setAttribute("aria-pressed","false")}
+  if(t.id==="q"){S.q=t.value;render()}
+  if(t.id==="rQ"){S.rec.q=t.value;render()}
+  if(t.id==="cardMsg"){CARD.msg=t.value;try{localStorage.setItem("gb.cardmsg",t.value)}catch(_){}clearTimeout(renderCard.h);renderCard.h=setTimeout(renderCard,250)}
+});
+document.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key==="Tab")&&e.target.dataset.sc){const ins=[...document.querySelectorAll("[data-sc]")],i=ins.indexOf(e.target),n=ins[e.shiftKey&&e.key==="Tab"?i-1:i+1];
+    if(n){e.preventDefault();n.focus();n.select()}else if(e.key==="Enter"){e.preventDefault();e.target.blur()}}
+  if(e.key==="Enter"&&e.target.dataset.edit){e.preventDefault();e.target.blur()}
+  if(e.key==="Enter"&&e.target.id==="renClsIn"){e.preventDefault();$("#renClsSave").click()}
+});
+document.addEventListener("focusout",e=>{const t=e.target;if(t.dataset&&t.dataset.sc&&timers[S.itemId]){clearTimeout(timers[S.itemId]);flush(S.itemId)}});
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.id&&t.id.startsWith("mkplan-")){safe(()=>Store.update("makeups",t.id.slice(7),{planDate:t.value}),"已更新預計補課日期");return}
+  if(t.id&&t.id.startsWith("mkdone-")){safe(()=>Store.update("makeups",t.id.slice(7),{doneDate:t.value}),"已更新補課日期");return}
+  if(t.id==="impJson"&&t.files[0]){importBackup(t.files[0]);t.value=""}
+  if(t.id==="mt"){S.missType=t.value;render()}
+  if(t.name==="niType"){$("#niOther").hidden=t.value!=="other";$("#niScoreRow").hidden=t.value==="other"?document.querySelector("[name=niKind]:checked").value!=="score":TYPE[t.value].kind!=="score"}
+  if(t.name==="niKind")$("#niScoreRow").hidden=t.value!=="score";
+  if(t.id==="rCls"){S.rec.cls=t.value;render()} if(t.id==="rType"){S.rec.type=t.value;render()} if(t.id==="rOnly"){S.rec.only=t.value;render()}
+  if(t.id==="rFrom"){S.rec.from=t.value;render()} if(t.id==="rTo"){S.rec.to=t.value;render()}
+  if(t.dataset.edit){const s=S.students.find(x=>x.id===t.dataset.id);if(!s)return;let v=t.value.trim();
+    if(t.dataset.edit==="seat")v=v===""?null:(Number(v)||v);
+    if((t.dataset.edit==="name"||t.dataset.edit==="cls")&&!v){t.value=s[t.dataset.edit];return}
+    if(v===s[t.dataset.edit])return;
+    safe(()=>Store.update("students",s.id,{[t.dataset.edit]:v}),t.dataset.edit==="cls"?`${s.name} 已轉到 ${v}`:"已儲存")}
+});
+document.addEventListener("submit",e=>{e.preventDefault();const f=e.target;
+  if(f.id==="mkNew"){const d={sid:$("#mkStu").value,cls:S.cls,missDate:$("#mkMiss").value||todayStr(),content:$("#mkContent").value.trim(),planDate:$("#mkPlan").value,note:$("#mkNote").value.trim(),done:false,createdAt:Date.now(),createdBy:ME||null};
+    const nm=S.students.find(x=>x.id===d.sid)?.name||"";safe(()=>Store.set("makeups",Store.newId("makeups"),d),`已登記 ${nm} 的補課`);$("#mkContent").value="";$("#mkNote").value="";return}
+  if(f.dataset.mkform){const sid=f.dataset.mkform,item=curItem(),date=f.querySelector(".mkdate").value||todayStr(),v=f.querySelector(".mksc").value.trim();if(v==="")return;
+    const k=newKey();patch(item.id,sid,{mk:{[k]:{sc:Number(v),date,at:Date.now(),by:ME||null}}},50,{a:"mk",v:Number(v),date});S.mkOpen=null;render();toast("已登記補考成績");return}
+  if(f.id==="newItem"){const type=f.querySelector("[name=niType]:checked").value;const d={cls:S.cls,type,title:$("#niTitle").value.trim(),date:$("#niDate").value||todayStr(),results:{},createdAt:Date.now(),createdBy:ME||null};
+    if(type==="other"){const nm=$("#niTypeName").value.trim();if(!nm){toast("請填寫類型名稱");$("#niTypeName").focus();return}d.typeName=nm;d.kind=f.querySelector("[name=niKind]:checked").value}
+    if(kindOf(d)==="score"){d.full=Number($("#niFull").value)||100;const p=$("#niPass").value;d.pass=p===""?null:Number(p)}
+    const id=Store.newId("items");S.itemId=id;safe(()=>Store.set("items",id,d),"已新增「"+d.title+"」")}
+  if(f.id==="addStu"){const cls=$("#asCls").value.trim();const names=$("#asNames").value.split(/\n|,|，|、/).map(x=>x.trim()).filter(Boolean);if(!cls||!names.length)return;
+    const base=studentsOf(cls).reduce((m,s)=>Math.max(m,Number(s.seat)||0),0);S.cls=cls;
+    safe(async()=>{for(let i=0;i<names.length;i++)await Store.set("students",Store.newId("students"),{name:names[i],cls,seat:base+i+1,createdAt:Date.now()+i})},`已加入 ${names.length} 位學生`);$("#asNames").value=""}
+});
+
+/* ---------------- 匯入備份 ---------------- */
+async function importBackup(file){
+  let data;try{data=JSON.parse(await file.text())}catch(_){toast("檔案格式不正確");return}
+  const st=data.students||[],it=data.items||[],mk=data.makeups||[];if(!st.length&&!it.length){toast("備份檔裡沒有資料");return}
+  if(!await ask(`匯入 ${st.length} 位學生、${it.length} 個評量、${mk.length} 筆補課？相同的資料會被覆蓋。`,"確定匯入"))return;
+  const strip=o=>{const{id,...rest}=o;return rest};
+  safe(async()=>{const all=[...st.map(x=>["students",x]),...it.map(x=>["items",x]),...mk.map(x=>["makeups",x])];
+    for(let i=0;i<all.length;i+=400){const batch=fs.batch();all.slice(i,i+400).forEach(([c,x])=>batch.set(fs.collection(c).doc(x.id),strip(x)));await batch.commit()}},"匯入完成");
+}
+
+/* ---------------- 登入與啟動 ---------------- */
+let unsubs=[];
+function start(){
+  S.started=true;S.ready={s:false,i:false};backupTried=false;$("#nav").hidden=false;render();
+  const err=e=>{if(e&&e.code==="permission-denied"){notice("<b>這個 Gmail 沒有使用權限。</b>請管理老師把你的 Gmail 加進 Firebase 規則的名單，加好後重新整理。");$("#view").innerHTML=""}else notice("<b>資料連線中斷</b>，請重新整理頁面。")};
+  unsubs.push(Store.listen("students",d=>{S.allS=d;S.students=d.filter(x=>!x.deleted);S.ready.s=true;render();maybeBackup()},err));
+  unsubs.push(Store.listen("items",d=>{S.allI=d;S.items=d.filter(x=>!x.deleted);S.ready.i=true;render();maybeBackup()},err));
+  unsubs.push(Store.listen("makeups",d=>{S.allM=d;S.makeups=d.filter(x=>!x.deleted);render()},()=>{}));
+  unsubs.push(Store.listen("teachers",d=>{d.forEach(t=>NAMES[t.id]=t.name||t.email||"老師");render()},()=>{}));
+}
+function showLogin(){
+  S.started=false;unsubs.forEach(u=>u&&u());unsubs=[];S.students=[];S.items=[];S.allS=[];S.allI=[];S.allM=[];S.makeups=[];$("#nav").hidden=true;$("#classes").innerHTML="";
+  $("#view").innerHTML=`<div class="card login"><div class="abc" aria-hidden="true"><span>A</span><span>B</span><span>C</span></div>
+    <h2>老師登入</h2><div class="sub">用 Gmail 登入後，就能查看和登記所有班級的資料。</div>
+    <button class="gbtn" id="gLogin"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>用 Google 帳號登入</button></div>`;
+}
+setSync();
+if(!FB_OK){$("#nav").hidden=true;notice("<b>還沒設定 Firebase。</b>請把 Firebase 設定貼進 index.html 最上方的 FIREBASE_CONFIG。");}
+else{
+  showLogin();
+  auth.onAuthStateChanged(u=>{
+    if(u){ME=u.uid;NAMES[u.uid]=u.displayName||u.email;$("#me").textContent=u.email;$("#logout").hidden=false;notice("");S.readOnly=false;
+      fs.collection("teachers").doc(u.uid).set({name:u.displayName||"",email:u.email||""},{merge:true}).catch(()=>{});start()}
+    else{ME=null;$("#me").textContent="";$("#logout").hidden=true;showLogin()}
+  });
+}
+</script>
+</body>
+</html>
