@@ -1,0 +1,1742 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>名間分校 英檢搭車</title>
+<script>
+/* LINE / FB / IG 內建瀏覽器會被 Google 擋住登入：LINE 自動改用手機預設瀏覽器開啟 */
+(function(){
+  var ua=navigator.userAgent||"";
+  if(/\bLine\//i.test(ua) && !/openExternalBrowser=1/.test(location.search)){
+    location.replace(location.origin+location.pathname+(location.search?location.search+"&":"?")+"openExternalBrowser=1"+location.hash);
+  }
+})();
+</script>
+<script>
+/* ============================================================
+   Firebase 設定（沿用「成績與錄音登記簿」同一個專案）
+   ============================================================ */
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCMLopKavGeDAZn3fQH12oCQarA8FgbP1k",
+  authDomain: "gradeb-a367f.firebaseapp.com",
+  projectId: "gradeb-a367f",
+  storageBucket: "gradeb-a367f.firebasestorage.app",
+  messagingSenderId: "397670471065",
+  appId: "1:397670471065:web:d858f94c57b707f127af08"
+};
+/* 這次活動的資料存放位置（下次活動改名字就會是全新的一張表） */
+window.EVENT_COLLECTION = "bus_1107";
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* 單一明亮主題。版面：頁首 → 黏頂統計格＋班級膠囊 → 學生列（名字｜備註｜搭來｜搭回） */
+:root{
+  --bg:#fff9ec; --dot:#ffe9b3; --surface:#ffffff; --ink:#3b3350; --muted:#8a80a0; --line:#f1e4c9;
+  --sun:#ffc93c; --sun-ink:#5a3d00; --sky:#4fb3ff; --pink:#ff7fa8;
+  --yes:#1f9e63; --yes-bg:#d9f7e7; --no:#9a8fb0; --no-bg:#ece8f3;
+  --par:#1f78c8; --par-bg:#e3f1ff; --leave:#e0507a; --leave-bg:#ffe1ea; --empty-bg:#f4f0fa;
+  --round:"Huninn","Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --font:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);background-image:radial-gradient(var(--dot) 1.5px,transparent 1.6px);background-size:22px 22px;color:var(--ink);font-family:var(--font);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:40px}
+[hidden]{display:none!important}
+.wrap{max-width:920px;margin:0 auto}
+header{padding-top:max(20px,env(safe-area-inset-top,0px));padding-bottom:10px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-family:var(--round);font-size:26px;font-weight:700;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.plate{display:inline-flex;align-items:center;gap:6px;background:var(--sun);color:var(--sun-ink);font-size:13px;font-weight:700;padding:5px 12px 5px 8px;border-radius:999px;box-shadow:0 3px 0 #e8a800}
+.plate svg{width:22px;height:22px}
+.date{color:var(--pink)}
+.sub{color:var(--muted);font-size:13px;margin-top:6px}
+.me{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px}
+#status{color:var(--sky);font-weight:500;background:var(--surface);border:2px solid #d6ecff;border-radius:999px;padding:4px 10px}
+.link{font:inherit;font-size:12px;border:0;background:none;color:var(--muted);text-decoration:underline;cursor:pointer}
+.gate{background:var(--surface);border:2px solid var(--line);border-radius:22px;padding:28px 20px;text-align:center;margin-top:20px}
+.pw{text-align:left;margin-top:16px;background:#f7f9ff;border:2px dashed #c9dcf5;border-radius:16px;padding:10px 14px}
+.pw summary{cursor:pointer;font-weight:700;color:var(--par);font-size:15px}
+.pw-f{display:grid;gap:8px;margin-top:10px}
+.pw-f input{font-size:16px}
+.pw-b{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pw-msg{font-size:14px!important;color:var(--leave)!important;margin:4px 0 0!important}
+.pw.verify{border-style:solid;border-color:#ffe08a;background:#fffbef}
+.pw.verify p{color:var(--ink)!important;margin:6px 0!important}
+.inapp{text-align:left;background:#fff6f9;border:2px solid #ffadc4;border-radius:16px;padding:12px 14px;margin:0 0 16px;font-size:14px;line-height:1.7}
+.inapp b{color:var(--leave)}
+.inapp p{margin:6px 0!important;color:var(--ink)!important}
+.inapp ol{margin:4px 0 8px;padding-left:20px}
+.inapp-url{display:grid;grid-template-columns:1fr auto;gap:8px}
+.gate p{color:var(--muted);margin:8px 0 18px}
+.btn{font:inherit;font-size:15px;font-weight:700;border:0;background:var(--sky);color:#fff;border-radius:999px;padding:11px 20px;cursor:pointer;box-shadow:0 3px 0 #2e8fd9}
+.btn.ghost{background:var(--surface);color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.btn.pink{background:var(--pink);box-shadow:0 3px 0 #d9567f}
+.sticky{position:sticky;top:0;background:var(--bg);z-index:5;padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:6px;border-bottom:2px dashed var(--line)}
+.totals{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.tot{font:inherit;color:var(--ink);background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:7px 2px;text-align:center;min-width:0}
+.tot b{display:block;font-family:var(--round);font-size:23px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.15}
+.tot span{font-size:12px;color:var(--muted);white-space:nowrap}
+button.tot{cursor:pointer;transition:transform .12s}
+button.tot:hover{transform:translateY(-2px);border-color:var(--sun)}
+button.tot span::after{content:" ›"}
+.tot.all b{color:var(--sky)} .tot.go b{color:var(--yes)} .tot.par b{color:var(--par)} .tot.leave b{color:var(--leave)} .tot.blank b{color:#c98a00} .tot.skip b{color:#7a6f8f} .tot.nt b{color:#8b5cf6}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;padding-top:12px;padding-bottom:6px}
+.chip{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:16px;padding:9px 8px;font:inherit;font-size:18px;font-weight:700;cursor:pointer;display:flex;gap:6px;align-items:baseline;justify-content:center;min-width:0}
+.chip small{font-size:14px;font-weight:500}
+.chip small{color:var(--muted);font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink);font-weight:700;box-shadow:0 3px 0 #e8a800}
+.chip[aria-pressed="true"] small{color:var(--sun-ink)}
+.chip.done{border-color:#a8e6c6}
+.chip.done small::after{content:" ✓";color:var(--yes)}
+.legend{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted);align-items:center}
+.legend i{font-style:normal;border-radius:8px;padding:2px 8px;font-weight:700}
+.classhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:20px 0 8px;flex-wrap:wrap}
+.classhead h2{margin:0;font-family:var(--round);font-size:20px;color:var(--sky)}
+.classhead .meta{font-size:12px;color:var(--muted)}
+.classhead .stat{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;background:var(--surface);border-radius:999px;padding:3px 10px}
+.list{background:var(--surface);border:2px solid var(--line);border-radius:18px;overflow:hidden}
+.row{display:grid;grid-template-columns:max-content minmax(90px,1fr) auto;gap:10px;align-items:center;padding:10px 12px;border-top:2px dotted var(--line)}
+.row.is-leave{background:#fff6f9}
+.divider{font-size:12px;font-weight:700;color:var(--yes);background:#f3fbf6;padding:4px 14px;border-top:2px dashed #bfe8d0}
+.btns{display:grid;grid-template-columns:repeat(4,100px);gap:6px}
+.row:first-child{border-top:0}
+.who{white-space:nowrap}
+.who .zh{font-weight:700;font-size:16px}
+.who .en{display:block;color:var(--muted);font-size:13px}
+.note{display:block;width:100%;min-width:0;margin:0;font:inherit;font-size:14px;color:var(--ink);background:#fffdf6;border:2px dashed var(--line);border-radius:10px;padding:6px 9px}
+.note::placeholder{color:#c2b9d3}
+.note:focus{outline:none;border-style:solid;border-color:var(--sky)}
+.note.has{background:#fff1c7;border-style:solid;border-color:#ffe08a;font-weight:700;color:#8a5a00}
+.t{font:inherit;font-size:16px;font-weight:700;border:2px solid var(--line);border-radius:14px;min-height:54px;padding:4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2;background:var(--surface);color:var(--muted);transition:transform .1s;min-width:0}
+.t:active{transform:scale(.94)}
+.t span{white-space:nowrap}
+.t.on{border-width:3px;box-shadow:0 3px 0 currentColor}
+.t small{font-size:11px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t-go.on,.t-back.on{background:var(--yes-bg);border-color:#8fdcb4;color:var(--yes)}
+.t-par.on{background:var(--par-bg);border-color:#9ccbf5;color:var(--par)}
+.t-leave.on{background:var(--leave-bg);border-color:#ffadc4;color:var(--leave)}
+.t-skip.on{background:#e6e2ee;border-color:#b9b0cc;color:#4f4566}
+.t-skip{color:#8a80a0}
+.t-go,.t-back{color:#5e9e80} .t-par{color:#5f8fbd} .t-leave{color:#d07895}
+.t:focus-visible,.chip:focus-visible,.btn:focus-visible,.tot:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.help{font-size:12px;color:var(--muted);margin-top:10px}
+/* 模式切換與英檢正式考試分車 */
+.modebar{display:grid;grid-template-columns:1.3fr 1.1fr 1fr 1fr 1fr .9fr;gap:10px;margin:6px 0 4px}
+.mode.planm[aria-pressed="true"]{background:#1f9e63;border-color:#1f9e63;color:#fff;box-shadow:0 4px 0 #157548}
+.pl-pick{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0}
+.pl-pl{font-size:13px;color:var(--muted);font-weight:700}
+.pl-who{font:inherit;font-size:14px;font-weight:700;border:2px solid #a8e6c6;background:#fff;color:#157548;border-radius:999px;padding:4px 12px;cursor:pointer}
+.pl-who.on{background:#1f9e63;border-color:#1f9e63;color:#fff}
+.pl-tl{display:grid;gap:12px}
+.pl-seg{background:var(--surface);border:2px solid var(--line);border-left:6px solid #1f9e63;border-radius:16px;padding:12px 14px}
+.pl-seg.tbd{border-left-color:#c2b9d3;opacity:.85}
+.pl-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.pl-t{font-family:var(--round);font-weight:700;color:#1f9e63;font-size:18px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pl-h b{font-size:18px}
+.pl-note{font-size:14px;color:var(--ink);background:#f3fbf6;border-radius:10px;padding:6px 10px;margin:4px 0 8px}
+.pl-tent{font-size:13px;color:#c98a00;font-weight:700;margin:2px 0 6px}
+.pl-tent.small{font-weight:500}
+.pl-row{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:10px;align-items:start;padding:6px 0;border-top:1px dotted var(--line)}
+.pl-wl{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.pl-grp{font-size:12px;font-weight:700;background:#e3f1ff;color:var(--par);border-radius:999px;padding:3px 9px}
+.pl-do{font-size:15px;line-height:1.6}
+.pl-do.warn{color:var(--leave);font-weight:700}
+.pl-idle{margin-top:8px;font-size:14px;font-weight:700;border-radius:10px;padding:6px 10px}
+.pl-idle.warn{background:var(--leave-bg);color:var(--leave)} .pl-idle.ok{background:var(--yes-bg);color:var(--yes)}
+.pl-bag{background:var(--surface);border:2px dashed #a8e6c6;border-radius:16px;padding:12px 14px;margin-top:14px}
+.pl-bag h3{margin:0 0 6px;font-family:var(--round)}
+.pl-baglist{font-size:15px;line-height:1.7}
+.pl-bagx{font-size:14px;margin-top:4px}
+.pl-me{background:var(--surface);border:3px solid #1f9e63;border-radius:20px;padding:14px 16px;display:grid;gap:10px}
+.pl-me-h b{font-family:var(--round);font-size:24px;color:#157548}
+.pl-info{display:grid;gap:4px;font-size:15px}
+.pl-info i,.pl-mybag i{font-style:normal;display:inline-block;min-width:5.5em;color:var(--muted);font-size:13px}
+.pl-mybag{font-size:14px;line-height:1.6;background:#f3fbf6;border-radius:12px;padding:8px 10px}
+.pl-warn{background:var(--leave-bg);color:var(--leave);font-weight:700;border-radius:12px;padding:8px 10px;font-size:16px}
+.pl-mytl{display:grid;gap:0}
+.pl-my{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px dotted var(--line)}
+.pl-my b{font-size:15px}
+.pl-my.none{opacity:.75}
+.pl-me .btn{justify-self:start}
+.pl-team{margin:6px 0 4px;background:#f3fbf6;border-radius:12px;padding:8px 10px}
+.pl-team-h{font-size:13px;font-weight:700;color:#157548;margin-bottom:6px}
+.pl-team-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.pl-kid{background:#fff;border:1.5px solid #a8e6c6;border-radius:10px;padding:5px 8px;display:grid;gap:1px}
+.pl-kid b{font-size:16px} .pl-kid span{font-size:12px;color:var(--muted)}
+.pl-kid code{font-size:13px;font-weight:700;color:var(--ink);font-family:ui-monospace,Menlo,monospace;letter-spacing:.5px}
+.pl-kid em{font-style:normal;font-size:11px;color:var(--par);font-weight:700}
+@media (max-width:640px){.pl-row{grid-template-columns:1fr}.pl-my{grid-template-columns:82px minmax(0,1fr)}.pl-t{font-size:15px}}
+.mode.logm[aria-pressed="true"]{background:#5b6b82;border-color:#5b6b82;color:#fff;box-shadow:0 4px 0 #3f4b5e}
+.log-f{display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:8px;margin-bottom:8px}
+.log-f select{appearance:auto}
+.log-count{font-size:13px;color:var(--muted);margin:6px 2px}
+.log-list{background:var(--surface);border:2px solid var(--line);border-radius:18px;overflow:hidden}
+.log-row{display:grid;grid-template-columns:112px 64px 130px minmax(0,1fr);gap:8px;align-items:baseline;padding:8px 12px;border-top:1px dotted var(--line);font-size:14px}
+.log-row:first-child{border-top:0}
+.log-t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.log-type{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;text-align:center;background:var(--empty-bg)}
+.lt-點名{background:#ffe3ec;color:#d9567f} .lt-分車{background:#ddf0ff;color:#2e8fd9} .lt-烤肉{background:#fff1e0;color:#d97f22} .lt-器材{background:#efe7ff;color:#6d3fd6} .lt-模擬考{background:#fff4cc;color:#8a5a00}
+.log-who{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-x{line-height:1.5}
+@media (max-width:640px){.log-f{grid-template-columns:1fr 1fr}.log-f input{grid-column:1 / -1}.log-row{grid-template-columns:auto auto 1fr}.log-x{grid-column:1 / -1}}
+.mode.eqm[aria-pressed="true"]{background:#8b5cf6;border-color:#8b5cf6;color:#fff;box-shadow:0 4px 0 #6d3fd6}
+.eq-bar{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:12px 14px;display:grid;gap:8px;margin-bottom:12px}
+.eq-bar b{font-family:var(--round);font-size:20px}
+.eq-bar .btn{justify-self:start}
+.eq-prog{height:12px;background:var(--empty-bg);border-radius:999px;overflow:hidden}
+.eq-prog span{display:block;height:100%;background:var(--yes);border-radius:999px;transition:width .3s}
+.eq-miss{font-size:15px;color:#c98a00;line-height:1.6}
+.eq-ok{font-size:16px;font-weight:700;color:var(--yes)}
+.eq-list{background:var(--surface);border:2px solid var(--line);border-radius:18px;overflow:hidden}
+.eq-row{display:grid;grid-template-columns:96px minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.3fr) auto;gap:8px;align-items:center;padding:8px 10px;border-top:2px dotted var(--line)}
+.eq-row:first-child{border-top:0}
+.eq-hd{font-size:12px;color:var(--muted);padding-block:6px}
+.eq-row.done{background:#f3fbf6}
+.eq-ck{font:inherit;border:2px solid var(--line);background:var(--surface);border-radius:14px;height:52px;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0 8px;color:var(--muted)}
+.eq-ck .eqn{font-family:var(--round);font-size:18px;font-weight:700;min-width:1.4em}
+.eq-ck .eqt{font-size:14px;font-weight:700}
+.eq-ck.on{background:var(--yes);border-color:var(--yes);color:#fff}
+.eq-in.nm{font-weight:700;font-size:16px}
+.eq-del{font:inherit;font-size:12px;border:0;background:none;color:var(--muted);cursor:pointer;padding:6px;white-space:nowrap}
+.eq-del:hover{color:var(--leave)}
+.eq-zsum{display:flex;gap:8px;flex-wrap:wrap}
+.eq-zchip{background:var(--empty-bg);border-radius:999px;padding:4px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+.eq-zchip.ok{background:var(--yes-bg);color:var(--yes)}
+.eq-zone{margin-top:18px}
+.eq-zhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:0 4px 8px}
+.eq-zhead h3{margin:0;font-family:var(--round);font-size:22px;color:#6d3fd6}
+.eq-zone.z-tsai .eq-zhead h3{color:#d97f22}
+.eq-zone.z-tsai .eq-list{border-color:#ffd9a8}
+.eq-zcnt{font-weight:700;color:var(--yes);font-variant-numeric:tabular-nums}
+.eq-empty{padding:14px;color:var(--muted);font-size:14px}
+.eq-add{margin-top:12px;background:var(--surface);border:2px dashed #c9b6f5;border-radius:18px;padding:12px 14px;display:grid;gap:8px}
+.eq-add b{color:#6d3fd6}
+.eq-add-f{display:grid;grid-template-columns:1.4fr .8fr .9fr 1.3fr auto;gap:8px}
+@media (max-width:640px){
+  .modebar{grid-template-columns:1fr 1fr}
+  .eq-hd{display:none}
+  .eq-row{grid-template-columns:96px minmax(0,1fr) minmax(0,.6fr);grid-template-areas:"ck nm qt" "ck ow ow" "nt nt del"}
+  .eq-row>.eq-ck{grid-area:ck;height:auto;align-self:stretch;flex-direction:column;justify-content:center}
+  .eq-row>.nm{grid-area:nm} .eq-row>.qt{grid-area:qt} .eq-row>.ow{grid-area:ow} .eq-row>.nt{grid-area:nt} .eq-row>.eq-del{grid-area:del}
+  .eq-add-f{grid-template-columns:1fr 1fr}
+  .eq-add-f input:first-child{grid-column:1 / -1}
+}
+.mode.bbq[aria-pressed="true"]{background:#ff9f43;border-color:#ff9f43;color:#fff;box-shadow:0 4px 0 #d97f22}
+.bbq-help{background:var(--surface);border:2px dashed var(--line);border-radius:16px;padding:10px 14px;font-size:14px;line-height:1.7;color:var(--ink)}
+.bbq-help b{color:#d97f22;margin-right:4px}
+.bbq-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.bbq-legend{display:flex;gap:6px;margin-right:auto;flex-wrap:wrap}
+.bbq-legend .k{font-size:13px;font-weight:700;border-radius:999px;padding:3px 10px}
+.bbq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.bbq-table{background:var(--surface);border:3px solid var(--line);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.bbq-table.drop{border-color:#ff9f43;background:#fff6ec}
+.bbq-head{display:flex;justify-content:space-between;align-items:baseline}
+.bbq-head b{font-family:var(--round);font-size:22px;color:#d97f22}
+.bbq-cnt{font-weight:700;color:var(--yes);font-variant-numeric:tabular-nums}
+.bbq-cnt.over{color:var(--leave)}
+.bbq-sub{font-size:12px;color:var(--muted);margin-top:-6px}
+.bbq-list{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.bk{font:inherit;text-align:left;border:2px solid transparent;border-radius:12px;padding:6px 9px;cursor:grab;color:var(--ink);min-width:0;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.bk .zh{display:block;font-size:17px;font-weight:700}
+.bk .en{display:block;font-size:13px;color:var(--ink);opacity:.75;line-height:1.2}
+.bbq-sum{background:var(--surface);border:2px solid #ffd9a8;border-radius:18px;padding:12px 14px;margin:6px 0 12px;display:grid;gap:10px}
+.bbq-tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.bbq-tile{background:#fffaf3;border-radius:14px;padding:6px 2px;text-align:center}
+.bbq-tile b{display:block;font-family:var(--round);font-size:24px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.bbq-tile span{font-size:12px;color:var(--muted)}
+.bbq-tile.ok b{color:var(--yes)} .bbq-tile.no b{color:var(--leave)} .bbq-tile.big{background:#ff9f43} .bbq-tile.big b,.bbq-tile.big span{color:#fff}
+.bbq-per{display:flex;flex-wrap:wrap;gap:6px}
+.bbq-perc{font-size:13px;background:#fff1e0;border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums}
+.bbq-perc b{color:#d97f22} .bbq-perc.over{background:var(--leave-bg);color:var(--leave)}
+.bbq-sum .btn{justify-self:start}
+@media (max-width:640px){.bbq-tiles{grid-template-columns:repeat(4,1fr)}.bbq-tile.big{grid-column:span 2}}
+.bbq-tch{display:grid;gap:6px;background:#fff8ee;border:2px dashed #ffd9a8;border-radius:12px;padding:6px 8px}
+.bbq-tch-l{font-size:12px;font-weight:700;color:#d97f22}
+.bbq-tlist{display:flex;flex-wrap:wrap;gap:6px}
+.bbq-tnone{font-size:12px;color:var(--muted)}
+.bk.tk{background:#fff;border:2px solid #ff9f43;padding:4px 10px}
+.bk.tk .zh{font-size:15px} .bk.tk .meta{color:#d97f22}
+.bk.tk{position:relative} .bk.tk .tx{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:#ff9f43;color:#fff;font-size:14px;line-height:20px;text-align:center;font-weight:700;cursor:pointer}
+.bk.tk.sel{background:#fff1c7;border-color:#ffc93c}
+.bbq-table.tpool{margin-bottom:12px;border-color:#ffd9a8;background:#fffaf3}
+.bbq-table.tpool .bbq-head b{font-size:19px}
+.bbq-tch input{font-size:14px;padding:5px 8px}
+.bbq-zone-title{font-family:var(--round);font-size:20px;margin:22px 2px 8px;color:var(--muted)}
+.bbq-table.zone{background:#f7f5fb;border-style:dashed;border-color:#cfc6e0}
+.bbq-table.zone .bbq-head b{color:#6f6488}
+.bbq-grid.zones{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.bbq-empty{grid-column:1 / -1;color:var(--muted);font-size:13px;padding:6px 2px}
+.bk.flash{animation:flash 1.2s ease 3;border-color:#ffc93c}
+@keyframes flash{50%{box-shadow:0 0 0 6px #ffe08a}}
+.bk .meta{display:block;font-size:12px;color:var(--muted)}
+.bk.hi,.k.hi{background:#ffe1ea} .bk.mid,.k.mid{background:#e3f1ff} .bk.lo,.k.lo{background:#d9f7e7}
+.bk.bk-self{border-style:dashed;border-color:#9ccbf5}
+.bk.sel{border-color:#ffc93c;background:#fff1c7;box-shadow:0 0 0 3px #ffe08a}
+.bk.drop{border-color:#ff9f43}
+.bk.dragging{opacity:.35}
+.bk.ghost{position:fixed;z-index:50;pointer-events:none;box-shadow:0 8px 20px rgba(59,51,80,.25);width:120px}
+.bbq-move{font:inherit;font-size:14px;font-weight:700;border:2px dashed #ff9f43;background:#fff6ec;color:#d97f22;border-radius:12px;padding:8px;cursor:pointer}
+@media (max-width:640px){.modebar .mode.exam{grid-column:1 / -1}}
+.mode{font:inherit;font-family:var(--round);font-size:18px;font-weight:700;border:3px solid var(--line);background:var(--surface);color:var(--ink);border-radius:18px;padding:12px 10px;cursor:pointer;line-height:1.3}
+.mode[aria-pressed="true"]{background:var(--sun);border-color:var(--sun);color:var(--sun-ink);box-shadow:0 4px 0 #e8a800}
+.mode.exam[aria-pressed="true"]{background:#ff7fa8;border-color:#ff7fa8;color:#fff;box-shadow:0 4px 0 #d9567f}
+#app.exam-mode .mock{display:none!important}
+.ex-title{font-family:var(--round);font-size:26px;margin:16px 0 4px;text-align:center}
+.ex-sub{text-align:center;color:var(--muted);font-size:14px;margin-bottom:14px}
+.ex-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.ex-tab{font:inherit;border:3px solid var(--line);background:var(--surface);border-radius:20px;padding:12px 6px;cursor:pointer;text-align:center;color:var(--ink)}
+.ex-tab b{display:block;font-family:var(--round);font-size:26px}
+.ex-tab span{font-size:13px;color:var(--muted)}
+.ex-tab[aria-pressed="true"]{border-color:var(--bc);background:var(--bbg);box-shadow:0 4px 0 var(--bc)}
+.ex-card{background:var(--surface);border:3px solid var(--bc);border-radius:22px;margin-top:14px;overflow:hidden}
+.ex-head{background:var(--bbg);padding:14px 16px;display:grid;gap:8px}
+.ex-head h3{margin:0;font-family:var(--round);font-size:28px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ex-head h3 small{font-size:16px;color:var(--ink)}
+.ex-line{font-size:16px;line-height:1.6}
+.ex-line b{display:inline-block;min-width:4.5em;color:var(--muted);font-size:14px}
+.trip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.trip button{font:inherit;font-size:17px;font-weight:700;border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:10px;cursor:pointer;color:var(--ink)}
+.trip button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.board{font-size:16px;font-weight:700;color:var(--yes);font-variant-numeric:tabular-nums}
+.ex-body{padding:8px 14px 16px}
+.ex-cls{font-family:var(--round);font-size:20px;color:var(--sky);margin:14px 2px 8px;display:flex;gap:8px;align-items:baseline}
+.ex-cls small{font-size:14px;color:var(--muted);font-family:var(--font)}
+.ex-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}
+.kid{font:inherit;text-align:left;border:2px solid var(--line);background:#fffdf7;border-radius:14px;padding:9px 10px;cursor:pointer;color:var(--ink);position:relative;min-width:0}
+.kid .zh{display:block;font-size:20px;font-weight:700;letter-spacing:.04em}
+.kid .en{display:block;font-size:14px;color:var(--muted)}
+.kid.on{background:var(--yes-bg);border-color:#8fdcb4}
+.kid.on::after{content:attr(data-on);position:absolute;top:6px;right:8px;font-size:12px;font-weight:700;color:var(--yes)}
+.kid.tch .zh{font-size:18px}
+.trip.big{margin:0 0 12px}
+.trip-card .tsec,.trip-card .mvrow{display:none}
+.trip.three{grid-template-columns:1fr 1fr 1fr}
+.trip.big button{font-size:19px;padding:12px}
+.ex-sum{background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:12px 14px;margin-bottom:12px}
+.ex-sum-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ex-sum-head b{font-family:var(--round);font-size:18px}
+.ex-sum-grid .td.sumrow{border-top:2px solid var(--line);padding-top:4px;font-size:19px}
+.ex-total{display:grid;grid-template-columns:repeat(9,1fr);gap:6px;margin-top:12px}
+.ex-tt{background:#fffaf0;border-radius:12px;padding:6px 2px;text-align:center}
+.ex-tt b{display:block;font-family:var(--round);font-size:22px;font-variant-numeric:tabular-nums}
+.ex-tt span{font-size:12px;color:var(--muted)}
+.ex-tt.big{background:#ff7fa8} .ex-tt.big b,.ex-tt.big span{color:#fff}
+.ex-tt.ok b{color:var(--yes)} .ex-tt.warn b{color:#c98a00}
+@media (max-width:640px){.ex-total{grid-template-columns:repeat(3,1fr)}}
+.ex-sum-grid{display:grid;grid-template-columns:auto repeat(5,1fr);gap:4px 10px;font-variant-numeric:tabular-nums;text-align:center;align-items:center}
+.ex-sum-grid .th{font-size:12px;color:var(--muted)}
+.ex-sum-grid .td{font-size:17px;font-weight:700}
+.ex-sum-grid .td.b{text-align:left}
+.ex-sum-grid .td.ok{color:var(--yes)} .ex-sum-grid .td.warn{color:#c98a00}
+.mk-label{font-size:13px;color:var(--muted);margin-top:4px}
+.marks{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px}
+.mk{font:inherit;font-size:16px;font-weight:700;border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:9px 6px;cursor:pointer;color:var(--ink)}
+.mk-board[aria-pressed="true"]{background:var(--yes);border-color:var(--yes);color:#fff}
+.mk-leave[aria-pressed="true"]{background:var(--leave);border-color:var(--leave);color:#fff}
+.mk-self[aria-pressed="true"]{background:var(--par);border-color:var(--par);color:#fff}
+.mk-tip{font-size:13px;color:var(--muted)}
+.miss{font-size:15px;line-height:1.6;background:#fff;border-radius:12px;padding:8px 12px}
+.miss b{color:#c98a00}
+.kid.st-leave{background:var(--leave-bg);border-color:#ffadc4;opacity:.85}
+.kid.st-self{background:var(--par-bg);border-color:#9ccbf5;opacity:.85}
+.kid[data-tag]::after{content:attr(data-tag);position:absolute;top:6px;right:8px;font-size:12px;font-weight:700}
+.kid.st-leave::after{color:var(--leave)} .kid.st-self::after{color:var(--par)}
+.ex-notes{margin-top:8px;border-top:2px dashed var(--line);padding-top:4px}
+.nrow{display:grid;grid-template-columns:auto auto auto minmax(0,1fr);gap:8px;align-items:center;padding:6px 0}
+.ntag{font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px}
+.ntag.st-leave{background:var(--leave-bg);color:var(--leave)} .ntag.st-self{background:var(--par-bg);color:var(--par)}
+.nname{font-weight:700} .nsub{font-size:12px;color:var(--muted)}
+@media (max-width:440px){.nrow{grid-template-columns:auto auto 1fr}.nrow .note{grid-column:1 / -1}.ex-sum-grid .td{font-size:15px}}
+.ex-head h3 small.over{color:var(--leave);font-weight:700}
+.mvbtn{font:inherit;font-size:13px;font-weight:700;border:2px solid #9ccbf5;background:#fff;color:var(--par);border-radius:999px;padding:4px 12px;cursor:pointer;margin-left:auto}
+.mvbtn.on{background:var(--par);color:#fff;border-color:var(--par)}
+.kid.movable{border-style:dashed;border-color:#9ccbf5}
+.kid.sel{background:#fff1c7;border:2px solid #ffc93c;box-shadow:0 0 0 3px #ffe08a}
+.mvrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;background:#f3f8ff;border-radius:14px;padding:10px 12px;font-weight:700}
+.mvto{font:inherit;font-size:17px;font-weight:700;border:3px solid var(--bc);background:#fff;border-radius:14px;padding:6px 14px;cursor:pointer;color:var(--ink);display:flex;flex-direction:column;align-items:center}
+.mvto small{font-size:11px;font-weight:500;color:var(--muted)}
+.find{margin:10px 0 4px;position:relative}
+.find input{font-size:16px;padding:10px 14px;border-radius:14px;border-style:solid;background:#fff}
+.find-card{background:var(--surface);border:2px solid #ffe08a;border-radius:16px;padding:10px 14px;margin-top:8px;display:grid;gap:6px}
+.find-card.tch{border-color:#9ccbf5}
+.find-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.find-h b{font-size:20px} .find-h span{color:var(--muted);font-size:14px}
+.find-g{display:grid;gap:3px;font-size:15px}
+.find-g i{font-style:normal;display:inline-block;min-width:5em;color:var(--muted);font-size:13px}
+.find-g strong{color:var(--ink)}
+.find-a{display:flex;gap:8px;flex-wrap:wrap}
+.find-none{color:var(--muted);font-size:14px;padding:6px 4px}
+#app:not(.exam-mode) .find{display:none}
+.ex-out{margin-top:16px;background:var(--surface);border:2px dashed var(--line);border-radius:18px;padding:12px 16px;font-size:15px;line-height:1.8}
+.ex-out b{color:var(--leave)}
+.ex-note{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+@media (max-width:440px){.ex-tabs{grid-template-columns:1fr 1fr}.mode{font-size:15px;padding:10px 6px}.ex-tab b{font-size:22px}.ex-head h3{font-size:24px}.ex-grid{grid-template-columns:1fr 1fr}.kid .zh{font-size:18px}}
+.en-sub{display:block;font-family:var(--font);font-size:.72em;font-weight:500;letter-spacing:0;opacity:.85;line-height:1.25;margin-top:1px}
+.chip .en-sub,.eq-del .en-sub{display:inline;margin-left:4px}
+/* 名單面板（在頁面裡展開，不用跳窗） */
+.panel{background:var(--surface);border:3px solid var(--sun);border-radius:22px;margin-top:14px;scroll-margin-top:260px}
+/* 選項列（點按鈕後在該學生下方展開） */
+.pickrow{grid-column:1 / -1;background:#fffbef;border-top:2px dashed var(--line);padding:12px}
+.pickrow .ptitle{font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pickrow .x{font:inherit;font-size:13px;border:0;background:var(--empty-bg);color:var(--muted);border-radius:999px;padding:5px 12px;cursor:pointer}
+.pickrow .opts{grid-template-columns:repeat(4,1fr)}
+@media (max-width:440px){.pickrow .opts{grid-template-columns:1fr 1fr}}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:16px 18px 10px;border-bottom:2px dashed var(--line);flex-wrap:wrap}
+.panel-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn.sm{font-size:14px;padding:8px 14px}
+.sumline{display:flex;flex-wrap:wrap;gap:6px;padding:10px 18px 0}
+.sumline span{background:#f3f8ff;color:var(--ink);border-radius:999px;padding:3px 10px;font-size:13px;font-variant-numeric:tabular-nums}
+.sumline span b{color:var(--sky)}
+.card-head h2{margin:0;font-family:var(--round);font-size:22px}
+.card-head h2 span{font-size:15px;color:var(--yes);margin-left:8px}
+.card-body{overflow-y:auto;padding:12px 18px 20px}
+.close{font:inherit;font-weight:700;border:0;background:var(--pink);color:#fff;border-radius:999px;padding:8px 16px;cursor:pointer}
+.grp{padding-block:8px;border-top:2px dotted var(--line)}
+.grp:first-child{border-top:0}
+.grp b{font-size:15px;color:var(--sky)}
+.grp b small{color:var(--muted);font-weight:500;margin-left:4px}
+.grp p{margin:3px 0 0;line-height:1.8;font-size:15px}
+.empty{color:var(--muted);font-size:14px}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{font:inherit;font-size:19px;font-weight:700;border:3px solid transparent;border-radius:18px;height:66px;cursor:pointer}
+.opt.y{background:var(--yes-bg);color:var(--yes)}
+.opt.p{background:var(--par-bg);color:var(--par)}
+.opt.n{background:var(--no-bg);color:#6f6488}
+.opt.l{background:var(--leave-bg);color:var(--leave)}
+.opt.clear{grid-column:1/-1;height:48px;font-size:15px;background:var(--surface);color:var(--muted);border:2px solid var(--line)}
+.opt.on{border-color:currentColor}
+textarea{width:100%;font:inherit;font-size:16px;border:2px solid var(--line);border-radius:14px;padding:10px;resize:vertical;min-height:84px;background:#fff}
+textarea:focus{outline:none;border-color:var(--sky)}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}
+.quick button{font:inherit;font-size:14px;border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer}
+.row-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+@media (max-width:640px){.totals{grid-template-columns:repeat(4,1fr)}.tot b{font-size:20px}}
+@media (max-width:640px){
+  .sticky{position:static}
+  .panel{scroll-margin-top:10px}
+  .row{grid-template-columns:max-content minmax(0,1fr);row-gap:8px}
+  .btns{grid-column:1 / -1;grid-template-columns:repeat(4,1fr)}
+}
+@media (max-width:440px){
+  h1{font-size:22px}
+  .chips{grid-template-columns:repeat(4,1fr);gap:6px}
+  .chip{font-size:15px;padding:8px 2px;flex-direction:column;align-items:center;gap:0}
+  .chip small{font-size:12px}
+  .row{padding-inline:10px}
+  .t{font-size:14px;min-height:50px;padding:2px}
+  .btns{gap:4px}
+  .tot span{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){.t,button.tot{transition:none}}
+.pl-note{margin:14px 0;padding:12px 14px;border:2px dashed #f0b44c;border-radius:14px;background:#fff8e6}.pl-note b{display:block;margin-bottom:6px}.pl-note-t{white-space:pre-wrap;background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;line-height:1.7;font-size:15px}
+.pl-me-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.pl-lang{flex:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="plate"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="3" fill="#fff"/><rect x="5" y="6" width="6" height="5" rx="1" fill="#4fb3ff"/><rect x="13" y="6" width="6" height="5" rx="1" fill="#4fb3ff"/><circle cx="7.5" cy="18" r="2" fill="#3b3350"/><circle cx="16.5" cy="18" r="2" fill="#3b3350"/></svg>搭車</span><span><span class="date" id="hDate">11/15（日）</span><span id="hName">英檢正式考試 分車名單</span></span></h1>
+      <div class="sub">名間分校 · 需考英檢學生（不含 K1A、K1B、英檢班、國中班）</div>
+    </div>
+    <div class="me"><span id="status">連線中…</span><span id="who"></span><button class="link" id="logout" type="button" hidden>登出</button></div>
+  </header>
+
+  <section class="gate" id="gate" hidden>
+    <h2 style="margin:0;font-family:var(--round)">請先登入</h2>
+    <p>用 Google 帳號登入後就能一起使用，每位老師的資料會即時同步。</p>
+    <div class="inapp" id="inapp" hidden>
+      <b>⚠️ 請改用 Safari 或 Chrome 開啟</b>
+      <p>你現在是在 LINE／Facebook 等 App 裡面打開，Google 不允許在這裡登入。<br>
+      Please open this page in Safari or Chrome — Google sign-in is blocked inside LINE / Facebook.</p>
+      <ol>
+        <li>按右上角或右下角的「⋯」或「分享」</li>
+        <li>選「<b>用 Safari 開啟</b>」／「<b>用預設瀏覽器開啟</b>」／「<b>在瀏覽器中開啟</b>」</li>
+      </ol>
+      <p>或是複製網址，貼到 Safari／Chrome：</p>
+      <div class="inapp-url"><input id="inappUrl" class="note" readonly><button class="btn sm" id="inappCopy" type="button">複製網址</button></div>
+    </div>
+    <button class="btn" id="login" type="button">用 Google 登入</button>
+    <p id="gateMsg" style="margin-top:14px"></p>
+    <details class="pw" id="pwBox">
+      <summary>Google 登入不了？改用 Email ＋ 密碼登入<span class="en-sub">Can't use Google? Sign in with email & password</span></summary>
+      <div class="pw-f">
+        <input class="note" id="pwEmail" type="email" placeholder="你的 Email（要跟管理者登記的一樣）" autocomplete="email">
+        <input class="note" id="pwPass" type="password" placeholder="密碼（至少 6 個字）" autocomplete="current-password">
+        <div class="pw-b">
+          <button class="btn" id="pwLogin" type="button">登入</button>
+          <button class="btn ghost" id="pwSignup" type="button">第一次使用：建立帳號</button>
+        </div>
+        <button class="link" id="pwForgot" type="button">忘記密碼</button>
+        <p class="pw-msg" id="pwMsg"></p>
+      </div>
+    </details>
+    <div class="pw verify" id="verifyBox" hidden>
+      <b>📩 請到信箱收驗證信</b>
+      <p>我們寄了一封驗證信到 <span id="verifyMail"></span>。請打開信、按裡面的連結，再回到這裡按「我已經驗證了」。沒收到的話，看一下垃圾郵件。</p>
+      <div class="pw-b">
+        <button class="btn" id="verifyDone" type="button">我已經驗證了</button>
+        <button class="btn ghost" id="verifyResend" type="button">重寄驗證信</button>
+        <button class="link" id="verifyOut" type="button">換帳號</button>
+      </div>
+      <p class="pw-msg" id="verifyMsg"></p>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="modebar" role="tablist">
+      <button type="button" class="mode exam" id="toExam" aria-pressed="false">11/15 英檢正式考試 分車名單</button>
+      <button type="button" class="mode planm" id="toPlan" aria-pressed="false">細流＆老師行程</button>
+      <button type="button" class="mode bbq" id="toBbq" aria-pressed="false">烤肉分組</button>
+      <button type="button" class="mode eqm" id="toEq" aria-pressed="false">器材清單</button>
+      <button type="button" class="mode logm" id="toLog" aria-pressed="false">操作紀錄</button>
+      <button type="button" class="mode" id="toMock" aria-pressed="true">11/7 模擬考 搭車統計</button>
+    </div>
+    <div class="find" id="find">
+      <input id="findQ" class="note" type="search" placeholder="🔍 搜尋小朋友或老師（中文或英文名）Search student / teacher" autocomplete="off">
+      <div id="findRes"></div>
+    </div>
+    <section id="exam" hidden></section>
+    <section id="bbq" hidden></section>
+    <section id="eq" hidden></section>
+    <section id="log" hidden></section>
+    <section id="plan" hidden></section>
+    <div class="sticky mock">
+      <div class="totals">
+        <div class="tot all"><b id="tAll">0</b><span>總人數</span></div>
+        <button type="button" class="tot go" data-k="go"><b id="tGo">0</b><span>搭來</span></button>
+        <button type="button" class="tot go" data-k="back"><b id="tBack">0</b><span>搭回</span></button>
+        <button type="button" class="tot par" data-k="par"><b id="tPar">0</b><span>家長接送</span></button>
+        <button type="button" class="tot leave" data-k="leave"><b id="tLeave">0</b><span>請假</span></button>
+        <button type="button" class="tot blank" data-k="blank"><b id="tBlank">0</b><span>尚未填</span></button>
+        <button type="button" class="tot nt" data-k="note"><b id="tNote">0</b><span>備註</span></button>
+      </div>
+      <div class="chips" id="chips" role="toolbar" aria-label="班級"></div>
+    </div>
+
+    <div class="legend mock">每位學生有四個按鈕，點一下選取（變色），再點一下取消。已填的學生 2 秒後會移到下面：<i style="background:var(--yes-bg);color:var(--yes)">搭來</i><i style="background:var(--yes-bg);color:var(--yes)">搭回</i><i style="background:var(--par-bg);color:var(--par)">家長接送</i><i style="background:var(--leave-bg);color:var(--leave)">請假</i></div>
+
+    <section class="panel mock" id="sheet" hidden>
+      <div class="card-head"><h2 id="sheetTitle"></h2><div class="panel-actions"><button type="button" class="btn ghost sm" id="sheetCopy">複製文字</button><button type="button" class="btn sm" id="sheetDl">下載這份名單</button><button type="button" class="close" id="sheetClose">關閉</button></div></div>
+      <div class="sumline" id="sheetSum"></div>
+      <div class="card-body" id="sheetBody"></div>
+    </section>
+
+    <div id="main" class="mock"></div>
+
+    <div class="tools mock">
+      <button class="btn" id="exportBtn" type="button">下載統計（Excel 可開）</button>
+    </div>
+    <p class="help mock">上方數字可以點，會列出那些學生。兩位老師同時操作會即時同步。</p>
+  </div>
+</div>
+
+
+<script>
+const ROSTER = [{"c": "H1", "t": "Renelyn、Maggie", "st": [{"id": "H1-01", "zh": "謝采庭", "en": "Tina", "g": 3, "s": "弓"}, {"id": "H1-02", "zh": "李中博", "en": "Rano", "g": 4, "s": "弓"}]}, {"c": "H1A", "t": "Catherine、Renelyn", "st": [{"id": "H1A-01", "zh": "李俊穎", "en": "Gene", "g": 2, "s": "弓"}, {"id": "H1A-02", "zh": "張與任", "en": "Sene", "g": 2, "s": "弓"}, {"id": "H1A-03", "zh": "陳品霏", "en": "Fanny", "g": 2, "s": "弓"}, {"id": "H1A-04", "zh": "謝心瑀", "en": "Rita", "g": 2, "s": "弓"}, {"id": "H1A-05", "zh": "陳宥勳", "en": "Louis", "g": 2, "s": "名"}, {"id": "H1A-06", "zh": "陳禹帆", "en": "Leo", "g": 2, "s": "名"}, {"id": "H1A-07", "zh": "陳睿宇", "en": "Rex", "g": 2, "s": "名"}, {"id": "H1A-08", "zh": "吳怡珈", "en": "Baby", "g": 2, "s": "名"}, {"id": "H1A-09", "zh": "吳宜蒨", "en": "Janet", "g": 2, "s": "名"}, {"id": "H1A-10", "zh": "吳梓洋", "en": "Peter", "g": 2, "s": "名"}, {"id": "H1A-11", "zh": "謝靜萱", "en": "Daisy", "g": 2, "s": "名"}, {"id": "H1A-12", "zh": "吳珆汝", "en": "Ruby", "g": 2, "s": "名"}, {"id": "H1A-13", "zh": "楊甯安", "en": "Ann", "g": 2, "s": "名"}, {"id": "H1A-14", "zh": "周孟葶", "en": "Serena", "g": 2, "s": "中"}]}, {"c": "H1B", "t": "Renelyn、Judy", "st": [{"id": "H1B-01", "zh": "李御銜", "en": "Allen", "g": 2, "s": "弓"}, {"id": "H1B-02", "zh": "吳梓榆", "en": "Cynthia", "g": 2, "s": "名"}, {"id": "H1B-03", "zh": "陳欣渝", "en": "Cinny", "g": 3, "s": "弓"}, {"id": "H1B-04", "zh": "鍾雨澔", "en": "Charlies", "g": 3, "s": "弓"}, {"id": "H1B-05", "zh": "王俐茜", "en": "Lily", "g": 3, "s": "弓"}, {"id": "H1B-06", "zh": "李絜瑜", "en": "Julie", "g": 3, "s": "名"}, {"id": "H1B-07", "zh": "林宥任", "en": "Liam", "g": 3, "s": "名"}, {"id": "H1B-08", "zh": "陳彥丞", "en": "Daniel", "g": 3, "s": "名"}, {"id": "H1B-09", "zh": "吳芷妡", "en": "Celine", "g": 3, "s": "名"}, {"id": "H1B-10", "zh": "陳奕霏", "en": "Phoebe", "g": 3, "s": "名"}]}, {"c": "H2A", "t": "Renelyn、Judy", "st": [{"id": "H2A-01", "zh": "張恩齊", "en": "Angel", "g": 3, "s": "弓"}, {"id": "H2A-02", "zh": "李宛蓁", "en": "Jane", "g": 3, "s": "弓"}, {"id": "H2A-03", "zh": "陳禹蓁", "en": "Sophie", "g": 3, "s": "弓"}, {"id": "H2A-04", "zh": "賴育嫺", "en": "Alice", "g": 3, "s": "名"}, {"id": "H2A-05", "zh": "易昱瑋", "en": "Watt", "g": 3, "s": "名"}, {"id": "H2A-06", "zh": "吳珆萌", "en": "Mona", "g": 3, "s": "名"}, {"id": "H2A-07", "zh": "李羽童", "en": "Sophia", "g": 3, "s": "名"}]}, {"c": "H2B", "t": "Renelyn、Judy", "st": [{"id": "H2B-01", "zh": "謝聿盈", "en": "Alice", "g": 4, "s": "弓"}, {"id": "H2B-02", "zh": "陳昊群", "en": "Luke", "g": 4, "s": "弓"}, {"id": "H2B-03", "zh": "陳璿宇", "en": "Eddy", "g": 4, "s": "弓"}, {"id": "H2B-04", "zh": "李佳蓉", "en": "Amy", "g": 4, "s": "弓"}, {"id": "H2B-05", "zh": "趙翌程", "en": "Eason", "g": 4, "s": "中"}, {"id": "H2B-06", "zh": "劉羽棠", "en": "Stella", "g": 5, "s": "名"}, {"id": "H2B-07", "zh": "林芯筠", "en": "Hydi", "g": 5, "s": "名"}, {"id": "H2B-08", "zh": "石明玄", "en": "Sam", "g": 5, "s": "州"}, {"id": "H2B-09", "zh": "林柏安", "en": "Anson", "g": 6, "s": "名"}, {"id": "H2B-10", "zh": "林立晨", "en": "Tim", "g": 6, "s": "名"}]}, {"c": "H3", "t": "Maggie、Renelyn", "st": [{"id": "H3-01", "zh": "陳頁言", "en": "Tina", "g": 3, "s": "弓"}, {"id": "H3-02", "zh": "吳郡之", "en": "Elsie", "g": 3, "s": "名"}, {"id": "H3-03", "zh": "蔡丞睿", "en": "Ray", "g": 3, "s": "名"}, {"id": "H3-04", "zh": "蔡昕妤", "en": "Selina", "g": 3, "s": "名"}, {"id": "H3-05", "zh": "陳彥文", "en": "Ian", "g": 4, "s": "弓"}, {"id": "H3-06", "zh": "陳妤瑄", "en": "Mindy", "g": 4, "s": "弓"}, {"id": "H3-07", "zh": "陳昱辰", "en": "Leo", "g": 4, "s": "弓"}, {"id": "H3-08", "zh": "周潤潤", "en": "Reena", "g": 4, "s": "名"}, {"id": "H3-09", "zh": "張睿恩", "en": "Hugo", "g": 4, "s": "名"}, {"id": "H3-10", "zh": "陳冠竹", "en": "Grace", "g": 4, "s": "名"}, {"id": "H3-11", "zh": "吳秉宜", "en": "Daniel", "g": 4, "s": "名"}, {"id": "H3-12", "zh": "張承緯", "en": "Caden", "g": 4, "s": "名"}, {"id": "H3-13", "zh": "李建佑", "en": "Eric", "g": 5, "s": "弓"}, {"id": "H3-14", "zh": "程郁湋", "en": "Vivi", "g": 5, "s": "集"}]}, {"c": "H4", "t": "Maggie、Renelyn", "st": [{"id": "H4-01", "zh": "謝佳阜", "en": "Anson", "g": 4, "s": "弓"}, {"id": "H4-02", "zh": "陳子翔", "en": "Sean", "g": 5, "s": "弓"}, {"id": "H4-03", "zh": "籃柏竣", "en": "Allen", "g": 5, "s": "名"}, {"id": "H4-04", "zh": "陳宥瑜", "en": "Kelly", "g": 5, "s": "街"}, {"id": "H4-05", "zh": "林承諺", "en": "Eddy", "g": 6, "s": "名"}, {"id": "H4-06", "zh": "陳衧蓁", "en": "Emily", "g": 6, "s": "名"}, {"id": "H4-07", "zh": "黃建勝", "en": "Jason", "g": 6, "s": "名"}, {"id": "H4-08", "zh": "楊幀涵", "en": "Ella", "g": 6, "s": "弓"}]}, {"c": "H4A", "t": "Maggie、Renelyn", "st": [{"id": "H4A-01", "zh": "凃奐宇", "en": "Alvin", "g": 4, "s": "名"}, {"id": "H4A-02", "zh": "吳宜璇", "en": "Ellie", "g": 4, "s": "名"}, {"id": "H4A-03", "zh": "紀昀希", "en": "Alisa", "g": 4, "s": "名"}, {"id": "H4A-04", "zh": "賴子瑋", "en": "Brent", "g": 4, "s": "名"}, {"id": "H4A-05", "zh": "邱于桐", "en": "Ariel", "g": 5, "s": "弓"}, {"id": "H4A-06", "zh": "陳睿娜", "en": "Nana", "g": 5, "s": "弓"}, {"id": "H4A-07", "zh": "周媛媛", "en": "Doris", "g": 5, "s": "名"}, {"id": "H4A-08", "zh": "吳姵蓉", "en": "Monica", "g": 5, "s": "名"}, {"id": "H4A-09", "zh": "吳東序", "en": "Paul", "g": 5, "s": "名"}, {"id": "H4A-10", "zh": "陳妤瑄", "en": "Lucy", "g": 5, "s": "名"}, {"id": "H4A-11", "zh": "曾宏耀", "en": "Brian", "g": 5, "s": "名"}, {"id": "H4A-12", "zh": "楊博硯", "en": "Rex", "g": 5, "s": "名"}, {"id": "H4A-13", "zh": "陳綺云", "en": "Alice", "g": 6, "s": "弓"}, {"id": "H4A-14", "zh": "張睿宸", "en": "Rex", "g": 6, "s": "名"}]}, {"c": "H5", "t": "Maggie、Renelyn", "st": [{"id": "H5-01", "zh": "方禹傑", "en": "Jackson", "g": 4, "s": "名"}, {"id": "H5-02", "zh": "易彤芸", "en": "Judy", "g": 4, "s": "名"}, {"id": "H5-03", "zh": "周孝晨", "en": "Herman", "g": 4, "s": "名"}, {"id": "H5-04", "zh": "蔡玥恩", "en": "Lola", "g": 4, "s": "名"}, {"id": "H5-05", "zh": "臧允", "en": "Yunen", "g": 4, "s": "名"}, {"id": "H5-06", "zh": "李采璇", "en": "Hannah", "g": 5, "s": "弓"}, {"id": "H5-07", "zh": "陳宥均", "en": "Gina", "g": 5, "s": "弓"}, {"id": "H5-08", "zh": "王巧妍", "en": "Bella", "g": 5, "s": "弓"}, {"id": "H5-09", "zh": "李侑穎", "en": "Daniel", "g": 5, "s": "弓"}, {"id": "H5-10", "zh": "陳韋臣", "en": "Kevin", "g": 5, "s": "名"}, {"id": "H5-11", "zh": "陳芷蓉", "en": "Rachel", "g": 5, "s": "名"}, {"id": "H5-12", "zh": "吳秉峯", "en": "Jordan", "g": 5, "s": "名"}, {"id": "H5-13", "zh": "鍾昕祐", "en": "Richard", "g": 6, "s": "弓"}, {"id": "H5-14", "zh": "李雨芹", "en": "Mina", "g": 6, "s": "弓"}]}, {"c": "H6", "t": "Renelyn、Maggie", "st": [{"id": "H6-01", "zh": "謝佳宸", "en": "Sandy", "g": 5, "s": "弓"}, {"id": "H6-02", "zh": "郭珉淇", "en": "Kiki", "g": 5, "s": "名"}, {"id": "H6-03", "zh": "邱亭毓", "en": "Amy", "g": 6, "s": "名"}, {"id": "H6-04", "zh": "林柔伊", "en": "Zoe", "g": 6, "s": "名"}, {"id": "H6-05", "zh": "吳宗翰", "en": "Luca", "g": 6, "s": "名"}, {"id": "H6-06", "zh": "吳韋叡", "en": "Alex", "g": 6, "s": "名"}, {"id": "H6-07", "zh": "吳韋陞", "en": "Jacob", "g": 6, "s": "名"}, {"id": "H6-08", "zh": "陳洺著", "en": "Sam", "g": 6, "s": "名"}, {"id": "H6-09", "zh": "謝昀修", "en": "Hugo", "g": 6, "s": "街"}, {"id": "H6-10", "zh": "陳瑩利", "en": "Leo", "g": 6, "s": "弓"}, {"id": "H6-11", "zh": "陳子軒", "en": "Owen", "g": 6, "s": "弓"}, {"id": "H6-12", "zh": "陳庭禎", "en": "Anna", "g": 6, "s": "弓"}, {"id": "H6-13", "zh": "謝沂霏", "en": "Eve", "g": 6, "s": "弓"}]}, {"c": "H6C", "t": "Renelyn、Judy", "st": [{"id": "H6C-01", "zh": "陳伯銓", "en": "Ford", "g": 5, "s": "名"}, {"id": "H6C-02", "zh": "陳芊蓉", "en": "Milly", "g": 6, "s": "名"}, {"id": "H6C-03", "zh": "陳芊樺", "en": "Vivian", "g": 6, "s": "名"}, {"id": "H6C-04", "zh": "陳芷芸", "en": "Anne", "g": 6, "s": "名"}, {"id": "H6C-05", "zh": "謝秉叡", "en": "Ray", "g": 6, "s": "名"}, {"id": "H6C-06", "zh": "謝秉璁", "en": "Ben", "g": 6, "s": "名"}]}, {"c": "H7A", "t": "Maggie、Renelyn", "st": [{"id": "H6A-01", "zh": "李帛頡", "en": "Jerry", "g": 5, "s": "弓"}, {"id": "H6A-02", "zh": "蔣媛芮", "en": "Rennie", "g": 5, "s": "弓"}, {"id": "H6A-03", "zh": "陳庭蓁", "en": "Joy", "g": 5, "s": "名"}, {"id": "H6A-04", "zh": "蘇芳儀", "en": "Claire", "g": 5, "s": "名"}, {"id": "H6A-05", "zh": "陳劉恩", "en": "Nick", "g": 6, "s": "弓"}, {"id": "H6A-06", "zh": "張盛善", "en": "Samson", "g": 6, "s": "弓"}, {"id": "H6A-07", "zh": "陳妤睿", "en": "Vivi", "g": 6, "s": "弓"}, {"id": "H6A-08", "zh": "陳禹霏", "en": "Fanny", "g": 6, "s": "弓"}, {"id": "H6A-09", "zh": "游秉諺", "en": "Kenny", "g": 6, "s": "名"}, {"id": "H6A-10", "zh": "臧唯", "en": "Willy", "g": 6, "s": "名"}]}];
+const COL = window.EVENT_COLLECTION;
+const BTNS = [["go","搭來"],["back","搭回"],["par","家長接送"],["leave","請假"]];
+const state = {};           // id -> {go, back, par, leave, reason, note}  (true/false)
+/* 只能看、不能改的人（不是老師，不會出現在任何名單） */
+const VIEWERS = ["jeff304305@gmail.com"];
+const isViewer = () => !!(auth && auth.currentUser && VIEWERS.includes((auth.currentUser.email||"").toLowerCase()));
+let cur = "ALL", fs = null, auth = null, unsub = null, canWrite = false, open = null;
+const $ = s => document.querySelector(s);
+const stu = {}; ROSTER.forEach(c=>c.st.forEach(s=>stu[s.id]={...s,c:c.c}));
+const S = id => state[id] || {};
+const nameOf = s => s.zh + (s.en ? " " + s.en : "");
+const filled = x => !!(x.go||x.back||x.par||x.leave||x.skip);
+
+/* ---------- 統計 ---------- */
+function stat(c){
+  const r={n:c.st.length,go:0,back:0,par:0,leave:0,skip:0,blank:0,note:0};
+  c.st.forEach(s=>{ const x=S(s.id);
+    if(x.go)r.go++; if(x.back)r.back++; if(x.par)r.par++; if(x.leave)r.leave++; if(x.skip)r.skip++; if(!filled(x))r.blank++; if(x.note)r.note++; });
+  return r;
+}
+const scope = () => cur==="ALL" ? ROSTER : ROSTER.filter(c=>c.c===cur);
+
+function renderTotals(){
+  const t={n:0,go:0,back:0,par:0,leave:0,skip:0,blank:0,note:0};
+  scope().forEach(c=>{const s=stat(c); for(const k in t) t[k]+=s[k];});
+  $("#tAll").textContent=t.n; $("#tGo").textContent=t.go; $("#tBack").textContent=t.back;
+  $("#tPar").textContent=t.par; $("#tLeave").textContent=t.leave; $("#tBlank").textContent=t.blank; $("#tNote").textContent=t.note;
+}
+function renderChips(){
+  const box=$("#chips"); box.textContent="";
+  const mk=(key,label,sub,done)=>{ const b=document.createElement("button"); b.type="button"; b.className="chip"+(done?" done":"");
+    b.setAttribute("aria-pressed",cur===key); const a=document.createElement("span"); a.textContent=label; const m=document.createElement("small"); m.textContent=sub;
+    b.append(a,m); b.onclick=()=>{cur=key; open=null; render(); window.scrollTo({top:0});}; box.appendChild(b); };
+  mk("ALL","全部",Object.keys(stu).length+"人",false);
+  ROSTER.forEach(c=>{const s=stat(c); mk(c.c,c.c,`${s.n-s.blank}/${s.n}`, s.blank===0);});
+}
+function optBtn(s,k,label){
+  const x=S(s.id), on=!!x[k], b=document.createElement("button");
+  b.type="button"; b.className="t t-"+k+(on?" on":""); b.disabled=!canWrite;
+  b.setAttribute("aria-pressed",on);
+  const sp=document.createElement("span"); sp.textContent=label; b.appendChild(sp);
+  if(k==="leave" && on){ const sm=document.createElement("small"); sm.textContent=x.reason||"寫原因"; b.appendChild(sm); }
+  b.onclick=()=>{
+    if(k==="leave"){ open = {id:s.id, draft:x.reason||""}; render(); focusOpen(); return; }
+    const patch={[k]:!on};
+    if(!on && k==="skip"){ Object.assign(patch,{go:false,back:false,par:false,leave:false,reason:""}); }
+    else if(!on){ patch.skip=false; if(x.leave){ patch.leave=false; patch.reason=""; } }
+    save(s.id,patch);
+  };
+  return b;
+}
+/* 未填的排在上面；點選後 2 秒才移到下面，方便同一位學生連點兩個按鈕 */
+let ORDER={}, ORDER_FILLED={}, resortTimer=null;
+function orderOf(c){
+  if(!ORDER[c.c]){
+    const a=c.st.filter(s=>!filled(S(s.id))), b=c.st.filter(s=>filled(S(s.id)));
+    ORDER[c.c]=a.concat(b); ORDER_FILLED[c.c]=b.length;
+  }
+  return ORDER[c.c];
+}
+function scheduleResort(ms){
+  clearTimeout(resortTimer);
+  resortTimer=setTimeout(()=>{ if(open || (document.activeElement&&document.activeElement.classList.contains("note"))){ scheduleResort(1500); return; }
+    ORDER={}; ORDER_FILLED={}; render(); }, ms);
+}
+function renderMain(){
+  const main=$("#main"); main.textContent="";
+  scope().forEach(c=>{
+    const st=stat(c);
+    const head=document.createElement("div"); head.className="classhead";
+    const l=document.createElement("div"); const h=document.createElement("h2"); h.textContent=c.c; const m=document.createElement("div"); m.className="meta"; m.textContent=c.t; l.append(h,m);
+    const r=document.createElement("div"); r.className="stat"; r.textContent=`搭來 ${st.go} · 搭回 ${st.back} · 家長 ${st.par} · 請假 ${st.leave} · 未填 ${st.blank} / ${st.n}`;
+    head.append(l,r); main.appendChild(head);
+    const box=document.createElement("div"); box.className="list";
+    let shownDiv=false;
+    orderOf(c).forEach(s=>{
+      if(!shownDiv && filled(S(s.id)) && ORDER_FILLED[c.c]>0 && ORDER_FILLED[c.c]<c.st.length){
+        const d=document.createElement("div"); d.className="divider"; d.textContent="已填寫 ↓"; box.appendChild(d); }
+      if(filled(S(s.id))) shownDiv=true;
+      const x=S(s.id), row=document.createElement("div"); row.className="row"+(x.leave?" is-leave":"");
+      const w=document.createElement("div"); w.className="who";
+      const zh=document.createElement("span"); zh.className="zh"; zh.textContent=s.zh;
+      const en=document.createElement("span"); en.className="en"; en.textContent=s.en; w.append(zh,en);
+      const inp=document.createElement("input"); inp.className="note"+(x.note?" has":""); inp.id="note-"+s.id; inp.dataset.id=s.id;
+      inp.placeholder="備註"; inp.maxLength=40; inp.value=x.note||""; inp.setAttribute("list","noteOpts"); inp.setAttribute("aria-label",s.zh+" 備註"); inp.disabled=!canWrite;
+      inp.addEventListener("change",()=>save(s.id,{note:inp.value.trim()}));
+      const btns=document.createElement("div"); btns.className="btns";
+      BTNS.forEach(([k,label])=>btns.appendChild(optBtn(s,k,label)));
+      row.append(w,inp,btns);
+      box.appendChild(row);
+      if(open && open.id===s.id) box.appendChild(buildLeave(s));
+    });
+    main.appendChild(box);
+  });
+}
+function renderOpts(){
+  let dl=document.getElementById("noteOpts");
+  if(!dl){ dl=document.createElement("datalist"); dl.id="noteOpts"; document.body.appendChild(dl); }
+  const set=new Set(["國樂",...Object.values(state).map(x=>x.note).filter(Boolean)]);
+  dl.textContent=""; set.forEach(v=>{const o=document.createElement("option"); o.value=v; dl.appendChild(o);});
+}
+function render(){
+  const a=document.activeElement; let keep=null;
+  if(a && a.classList && a.classList.contains("note")) keep={id:a.dataset.id,v:a.value,s:a.selectionStart,e:a.selectionEnd};
+  renderTotals(); renderChips(); renderMain(); renderOpts(); if(sheetKey) renderSheet(); if(examMode) renderExam(); if(bbqMode) renderBbq(); renderFind(); if(eqMode) renderEq(); if(logMode) renderLog(); if(planMode) renderPlan();
+  if(keep){ const n=document.getElementById("note-"+keep.id); if(n){ n.value=keep.v; n.focus(); try{n.setSelectionRange(keep.s,keep.e);}catch(_){} } }
+  else if(a && a.id==="leaveReason"){ const t=document.getElementById("leaveReason"); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); } }
+}
+
+/* ---------- 請假原因（在學生下方展開） ---------- */
+function focusOpen(){ const el=document.querySelector(".pickrow"); if(el){ el.scrollIntoView({block:"nearest",behavior:"smooth"}); const t=el.querySelector("textarea"); if(t) t.focus(); } }
+function buildLeave(s){
+  const x=S(s.id), box=document.createElement("div"); box.className="pickrow";
+  const head=document.createElement("div"); head.className="ptitle";
+  const tt=document.createElement("span"); tt.textContent=`${s.zh} 請假原因：`;
+  const xb=document.createElement("button"); xb.type="button"; xb.className="x"; xb.textContent="收起";
+  xb.onclick=()=>{ open=null; render(); }; head.append(tt,xb);
+  const q=document.createElement("div"); q.className="quick";
+  const ta=document.createElement("textarea"); ta.id="leaveReason"; ta.maxLength=80; ta.placeholder="例如：發燒、家庭旅遊"; ta.value=open.draft||"";
+  ta.addEventListener("input",()=>{ open.draft=ta.value; });
+  ["病假","事假","出國","家裡有事"].forEach(w=>{ const b=document.createElement("button"); b.type="button"; b.textContent=w;
+    b.onclick=()=>{ ta.value=w+(ta.value?"："+ta.value:""); open.draft=ta.value; ta.focus(); }; q.appendChild(b); });
+  const acts=document.createElement("div"); acts.className="row-actions"; acts.style.marginTop="12px";
+  if(x.leave){ const c=document.createElement("button"); c.type="button"; c.className="btn ghost"; c.textContent="取消請假";
+    c.onclick=()=>{ open=null; save(s.id,{leave:false,reason:""}); }; acts.appendChild(c); }
+  const ok=document.createElement("button"); ok.type="button"; ok.className="btn pink"; ok.textContent=x.leave?"更新原因":"確定請假";
+  ok.onclick=()=>{ const r=ta.value.trim(); open=null; save(s.id,{leave:true,reason:r,go:false,back:false,par:false,skip:false}); };
+  acts.appendChild(ok); box.append(head,q,ta,acts);
+  return box;
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&open){ open=null; render(); } });
+
+/* ---------- 名單面板 ---------- */
+let sheetKey=null;
+const SHEET={
+  go:   {t:"搭來",     pick:x=>!!x.go},
+  back: {t:"搭回",     pick:x=>!!x.back},
+  par:  {t:"家長接送", pick:x=>!!x.par},
+  leave:{t:"請假",     pick:x=>!!x.leave, tag:x=>x.reason||"未寫原因"},
+  skip: {t:"不考試",   pick:x=>!!x.skip},
+  blank:{t:"尚未填",   pick:x=>!filled(x)}
+};
+function renderSheet(){
+  const body=$("#sheetBody"); body.textContent="";
+  let total=0, title; SHEET_ROWS=[]; const counts=[];
+  if(sheetKey==="note"){
+    title="備註統計"; const g={};
+    scope().forEach(c=>c.st.forEach(s=>{const n=S(s.id).note; if(n)(g[n]=g[n]||[]).push(c.c+" "+nameOf(s));}));
+    Object.keys(g).sort((a,b)=>g[b].length-g[a].length).forEach(k=>{ total+=g[k].length; counts.push([k,g[k].length]); g[k].forEach(n=>SHEET_ROWS.push([k,n,"",""])); body.appendChild(grp(k,g[k])); });
+  } else {
+    const cfg=SHEET[sheetKey]; title=cfg.t;
+    scope().forEach(c=>{
+      const who=c.st.filter(s=>cfg.pick(S(s.id)));
+      if(!who.length) return; total+=who.length; counts.push([c.c,who.length]);
+      who.forEach(s=>{ const x=S(s.id); SHEET_ROWS.push([c.c,s.zh,s.en,[cfg.tag?cfg.tag(x):"", sheetKey!=="leave"?x.note:""].filter(Boolean).join("，")]); });
+      body.appendChild(grp(c.c, who.map(s=>{ const x=S(s.id); const tg=[cfg.tag?cfg.tag(x):"", sheetKey!=="leave"?x.note:""].filter(Boolean).join("，");
+        return nameOf(s)+(tg?"（"+tg+"）":""); })));
+    });
+  }
+  if(!total){ const e=document.createElement("p"); e.className="empty"; e.textContent="目前沒有學生"; body.appendChild(e); }
+  const h=$("#sheetTitle"); h.textContent=title+(cur!=="ALL"?" · "+cur:"");
+  const sp=document.createElement("span"); sp.textContent="共 "+total+" 人"; h.appendChild(sp);
+  SHEET_TITLE=title; SHEET_TOTAL=total; SHEET_COUNTS=counts;
+  const sum=$("#sheetSum"); sum.textContent="";
+  counts.forEach(([k,n])=>{ const e=document.createElement("span"); const b=document.createElement("b"); b.textContent=k; e.append(b," "+n+" 人"); sum.appendChild(e); });
+}
+let SHEET_ROWS=[], SHEET_TITLE="", SHEET_TOTAL=0, SHEET_COUNTS=[];
+function sheetText(){
+  const lines=["11/7 模擬考 "+SHEET_TITLE+"：共 "+SHEET_TOTAL+" 人"];
+  SHEET_COUNTS.forEach(([k,n])=>{ const names=SHEET_ROWS.filter(r=>r[0]===k).map(r=>(r[1]+(r[2]?" "+r[2]:""))+(r[3]?"（"+r[3]+"）":""));
+    lines.push(k+"（"+n+" 人）："+names.join("、")); });
+  return lines.join("\n");
+}
+$("#sheetCopy").onclick=async()=>{
+  const txt=sheetText(), btn=$("#sheetCopy");
+  try{ await navigator.clipboard.writeText(txt); btn.textContent="已複製 ✓"; }
+  catch(_){ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy"); btn.textContent="已複製 ✓";}catch(__){} ta.remove(); }
+  setTimeout(()=>btn.textContent="複製文字",1800);
+};
+$("#sheetDl").onclick=()=>{
+  const isNote=sheetKey==="note";
+  const rows=[["11/7 模擬考 "+SHEET_TITLE,"共 "+SHEET_TOTAL+" 人"],[],
+    isNote?["備註","班級 姓名"]:["班級","姓名","英文名",sheetKey==="leave"?"請假原因":"說明"]];
+  SHEET_ROWS.forEach(r=>rows.push(isNote?[r[0],r[1]]:r));
+  rows.push([]); rows.push([isNote?"備註":"班級","人數"]); SHEET_COUNTS.forEach(c=>rows.push(c)); rows.push(["合計",SHEET_TOTAL]);
+  dlCsv(rows,"11-7模擬考_"+SHEET_TITLE+".csv");
+};
+function grp(label,names){
+  const g=document.createElement("div"); g.className="grp";
+  const b=document.createElement("b"); b.textContent=label; const sm=document.createElement("small"); sm.textContent=names.length+" 人"; b.appendChild(sm);
+  const p=document.createElement("p"); p.textContent=names.join("、"); g.append(b,p); return g;
+}
+document.querySelectorAll("button.tot").forEach(b=>b.addEventListener("click",()=>{
+  sheetKey=b.dataset.k; renderSheet(); const p=$("#sheet"); p.hidden=false; p.scrollIntoView({behavior:"smooth",block:"start"}); }));
+$("#sheetClose").onclick=()=>{ sheetKey=null; $("#sheet").hidden=true; };
+
+/* ---------- 11/15 英檢正式考試 分車 ---------- */
+const EXAM = {
+  title: "11/15（日）英檢正式考試 遊覽車分車",
+  key: "x1115_",
+  buses: [
+    {n:"A車", cap:43, lv:"K2、H4", cls:["H1","H1A","H1B","H5"], t:["邱老師","Maggie","Cherry"], c:"#e8a800", bg:"#fff4cc"},
+    {n:"B車", cap:43, lv:"H2、H3", cls:["H2A","H2B","H4","H4A"], t:["Jackie","陳茄茂","Vicky"], c:"#2e8fd9", bg:"#ddf0ff"},
+    {n:"C車", cap:44, lv:"H2、H5、H6", cls:["H3","H6","H6C","H7A"], t:["蔡老師","Kiki老師","賴依庭","張育惠","Renelyn"], c:"#d9567f", bg:"#ffe3ec"},
+    {n:"小車", cls:[], t:["黃意晴","張珈銘","蔡宣卉","蔡語芯","希橙","采希"], c:"#1f9e63", bg:"#d9f7e7"}
+  ],
+  level: {"H1":"K2","H1A":"K2","H1B":"K2","H2A":"H2","H2B":"H2","H3":"H2","H4":"H3","H4A":"H3","H5":"H4","H6":"H5","H6C":"H6","H7A":"H6"},
+  out: {"H3-05":"不參加（要補考）","H6-12":"不參加（要補考）","H6A-05":"不參加（要補考）","H3-14":"自行前往考場","H5-01":"自行前往考場"}
+};
+let examMode=false, examBus=0, examTrip="go";
+const exKids = cc => (ROSTER.find(c=>c.c===cc)||{st:[]}).st.filter(s=>!EXAM.out[s.id]);
+const exState = k => state[EXAM.key+k] || {};
+function busCount(b){ return b.cls.reduce((a,cc)=>a+exKids(cc).length,0); }
+/* 老師可以換車：每位老師有固定代號 T0、T1…，換到哪台車存在 x1115_tb_T? */
+/* 新老師一律加在小車清單最後面，才不會打亂既有老師的代號（T0、T1…） */
+const DRIVERS = {"蔡老師":"C車司機"};
+/* 代號順序固定（舊資料 bbqT_/烤肉桌都靠它），新老師只能加在最後；預設車次看 EXAM.buses */
+const T_ORDER = ["Maggie","Cherry","黃意晴","Jackie","陳茄茂","蔡老師","Renelyn","張育惠","Kiki老師","張珈銘","蔡宣卉","蔡語芯","Vicky","賴依庭","邱老師","希橙","采希"];
+EXAM.buses.forEach(b=>b.t.forEach(n=>{ if(!T_ORDER.includes(n)) T_ORDER.push(n); }));
+const TEACHERS = T_ORDER.map((n,i)=>({n,def:Math.max(0,EXAM.buses.findIndex(b=>b.t.includes(n))),k:"T"+i,drv:DRIVERS[n]||""})).sort((a,b)=>a.def-b.def||EXAM.buses[a.def].t.indexOf(a.n)-EXAM.buses[b.def].t.indexOf(b.n));
+const BUS_CAP = 42;
+const tBus = x => { const v=exState("tb2_"+x.k).bus; return Number.isInteger(v) ? v : x.def; };
+const busT = i => TEACHERS.filter(x=>tBus(x)===i);
+const busTotal = i => busCount(EXAM.buses[i]) + busT(i).filter(x=>!x.drv).length;  /* 司機不算座位 */
+let tMove=false, tSel=null;
+function setMode(m){
+  examMode=m==="exam"; bbqMode=m==="bbq"; eqMode=m==="eq"; logMode=m==="log"; planMode=m==="plan";
+  $("#app").classList.toggle("exam-mode",m!=="mock"); $("#exam").hidden=!examMode; $("#bbq").hidden=!bbqMode; $("#eq").hidden=!eqMode; $("#log").hidden=!logMode; $("#plan").hidden=!planMode;
+  const H={exam:["11/15（日）","英檢正式考試 分車名單"],bbq:["11/15（日）","烤肉分組"],eq:["11/15（日）","器材清單"],log:["","操作紀錄"],plan:["11/15（日）","細流＆老師行程"],mock:["11/7（六）","模擬考 搭車統計表"]}[m];
+  $("#hDate").textContent=H[0]; $("#hName").textContent=H[1];
+  $("#toExam").setAttribute("aria-pressed",examMode); $("#toBbq").setAttribute("aria-pressed",bbqMode); $("#toEq").setAttribute("aria-pressed",eqMode); $("#toLog").setAttribute("aria-pressed",logMode); $("#toPlan").setAttribute("aria-pressed",planMode); $("#toMock").setAttribute("aria-pressed",m==="mock");
+  try{ history.replaceState(null,"",m==="exam"?location.pathname+location.search:"#"+m); }catch(_){}
+  render(); window.scrollTo({top:0});
+}
+$("#toExam").onclick=()=>setMode("exam");
+$("#toMock").onclick=()=>setMode("mock");
+$("#toBbq").onclick=()=>setMode("bbq");
+$("#toEq").onclick=()=>setMode("eq");
+$("#toLog").onclick=()=>setMode("log");
+$("#toPlan").onclick=()=>setMode("plan");
+function el(tag,cls,txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
+let examMark="board";
+const ST_LABEL = { leave:"請假", self:{go:"自行前往", back:"自行回家", card:"忘記帶"} };
+const TRIP = {
+  go:  {n:"去程", on:"已上車", need:"應搭", miss:"還沒上車", mark:"✓ 上車點名", tip:"點名字＝上車，再點一次取消。"},
+  back:{n:"回程", on:"已上車", need:"應搭", miss:"還沒上車", mark:"✓ 上車點名", tip:"點名字＝上車，再點一次取消。"},
+  card:{n:"健保卡", on:"已收", need:"應收", miss:"還沒收", mark:"✓ 收到健保卡", tip:"點名字＝收到健保卡，再點一次取消。沒帶的請按「忘記帶」再點名字。"}
+};
+const stOf = (k,trip=examTrip) => { const x=exState(k);
+  if(trip==="card") return x.cardSt!==undefined && x.cardSt!==null ? x.cardSt : (x.goSt==="leave" ? "leave" : "");
+  return x[trip+"St"] || ""; };
+const stText = (st,trip=examTrip) => st==="leave" ? "請假" : st==="self" ? ST_LABEL.self[trip] : "";
+function busKeys(i,trip=examTrip){ const b=EXAM.buses[i]; return [...b.cls.flatMap(cc=>exKids(cc).map(s=>({k:s.id,name:s.zh,sub:s.c}))), ...(trip==="card"?[]:busT(i).filter(x=>!x.drv).map(x=>({k:x.k,name:x.n,sub:"老師"})))]; }
+function busStat(i,trip=examTrip){
+  const ks=busKeys(i,trip), r={all:ks.length,on:0,leave:[],self:[],miss:[]};
+  ks.forEach(x=>{ const st=stOf(x.k,trip); if(st==="leave") r.leave.push(x); else if(st==="self") r.self.push(x); else if(exState(x.k)[trip]) r.on++; else r.miss.push(x); });
+  r.need=r.all-r.leave.length-r.self.length; return r;
+}
+function tapKid(key){
+  const x=exState(key), T=examTrip, st=stOf(key,T);
+  if(examMark==="board"){ if(st) save(EXAM.key+key,{[T+"St"]:"",[T]:true}); else save(EXAM.key+key,{[T]:!x[T]}); return; }
+  if(examMark==="leave"){
+    if(st==="leave"){ const p={[T+"St"]:""}; if(T==="go" && x.backSt==="leave") p.backSt=""; save(EXAM.key+key,p); }
+    else { const p={[T+"St"]:"leave",[T]:false}; if(T==="go"){ p.backSt="leave"; p.back=false; if(x.cardSt===undefined||x.cardSt===null||x.cardSt==="") { p.cardSt="leave"; p.card=false; } } save(EXAM.key+key,p); }
+    return; }
+  if(examMark==="self"){ save(EXAM.key+key, st==="self" ? {[T+"St"]:""} : {[T+"St"]:"self",[T]:false}); }
+}
+function kidBtn(key,zh,en,isT){
+  const x=exState(key), st=stOf(key), on=!st && !!x[examTrip];
+  const b=el("button","kid"+(on?" on":"")+(st?" st-"+st:"")+(isT?" tch":""));
+  b.type="button"; b.setAttribute("aria-pressed",on); b.disabled=!canWrite;
+  b.append(el("span","zh",zh), el("span","en",en||""));
+  b.dataset.on=TRIP[examTrip].on;
+  if(st) b.dataset.tag=stText(st); 
+  b.onclick=()=>tapKid(key);
+  return b;
+}
+function examReport(){
+  const T=examTrip, P=TRIP[T], lines=[`11/15 英檢 ${T==="card"?"健保卡收取":P.n+"點名"}`];
+  { let a=0,on=0,need=0,lv=0,sf=0; EXAM.buses.forEach((b,i)=>{ const r=busStat(i); a+=r.all; on+=r.on; need+=r.need; lv+=r.leave.length; sf+=r.self.length; });
+    lines.push(T==="card" ? `學生 ${a} 人` : `總人數 ${a} 人（學生 ${a-TEACHERS.length}＋老師 ${TEACHERS.length}）`, `${P.on} ${on} / ${P.need} ${need}｜${P.miss} ${need-on}｜請假 ${lv}｜${ST_LABEL.self[T]} ${sf}`); }
+  EXAM.buses.forEach((b,i)=>{ const r=busStat(i);
+    lines.push(`【${b.n}】${P.on} ${r.on} / ${P.need} ${r.need} 人`);
+    if(r.miss.length) lines.push(r.miss.length>15 ? `　${P.miss} ${r.miss.length} 人` : `　${P.miss}：${r.miss.map(x=>x.name).join("、")}`);
+    if(r.leave.length) lines.push(`　請假：${r.leave.map(x=>x.name+(exState(x.k).why?"（"+exState(x.k).why+"）":"")).join("、")}`);
+    if(r.self.length) lines.push(`　${ST_LABEL.self[T]}：${r.self.map(x=>x.name+(exState(x.k).why?"（"+exState(x.k).why+"）":"")).join("、")}`);
+  });
+  return lines.join("\n");
+}
+function renderExam(){
+  const box=$("#exam"); box.textContent="";
+  box.append(el("h2","ex-title",EXAM.title));
+  const nS=EXAM.buses.reduce((a,b)=>a+busCount(b),0), nT=TEACHERS.length;
+  box.append(el("div","ex-sub",`學生 ${nS} 人 ＋ 老師 ${nT} 人 ＝ 共 ${nS+nT} 人`));
+  /* 去程／回程 */
+  const trip=el("div","trip big");
+  trip.classList.add("three");
+  [["go","去程點名"],["back","回程點名"],["card","健保卡"]].forEach(([k,lab])=>{ const x=el("button",null,lab); x.type="button"; x.setAttribute("aria-pressed",examTrip===k); x.onclick=()=>{examTrip=k; render();}; trip.append(x); });
+  box.append(trip);
+  /* 全部車次總覽 */
+  const sum=el("div","ex-sum");
+  const sh=el("div","ex-sum-head"); sh.append(el("b",null,`全部車次（${TRIP[examTrip].n}）`));
+  const cp=el("button","btn ghost sm","複製點名回報"); cp.type="button";
+  cp.onclick=async()=>{ const txt=examReport(); try{ await navigator.clipboard.writeText(txt); cp.textContent="已複製 ✓"; }catch(_){ const ta=document.createElement("textarea"); ta.value=txt; document.body.append(ta); ta.select(); try{document.execCommand("copy"); cp.textContent="已複製 ✓";}catch(__){} ta.remove(); } setTimeout(()=>cp.textContent="複製點名回報",1800); };
+  sh.append(cp); sum.append(sh);
+  const tbl=el("div","ex-sum-grid");
+  [examTrip==="card"?"車（學生）":"車",examTrip==="card"?"學生人數":"全車人數",`${TRIP[examTrip].on}／${TRIP[examTrip].need}`,TRIP[examTrip].miss,"請假",ST_LABEL.self[examTrip]].forEach(x=>tbl.append(el("span","th",x)));
+  const TT={all:0,on:0,need:0,miss:0,leave:0,self:0};
+  EXAM.buses.forEach((b,i)=>{ const r=busStat(i);
+    TT.all+=r.all; TT.on+=r.on; TT.need+=r.need; TT.miss+=r.miss.length; TT.leave+=r.leave.length; TT.self+=r.self.length;
+    tbl.append(el("span","td b",b.n), el("span","td",r.all), el("span","td "+(r.on===r.need?"ok":""),`${r.on} / ${r.need}`), el("span","td "+(r.miss.length?"warn":""),r.miss.length), el("span","td",r.leave.length), el("span","td",r.self.length)); });
+  tbl.append(el("span","td b sumrow","合計"), el("span","td sumrow",TT.all), el("span","td sumrow "+(TT.on===TT.need?"ok":""),`${TT.on} / ${TT.need}`), el("span","td sumrow "+(TT.miss?"warn":""),TT.miss), el("span","td sumrow",TT.leave), el("span","td sumrow",TT.self));
+  sum.append(tbl);
+  const nOut=Object.keys(EXAM.out).length+1; /* +1：蔡思妍（名單上已移除） */
+  const tl=el("div","ex-total");
+  [["總人數",TT.all,"big"],["學生",nS,""],["老師",TEACHERS.length,""],[TRIP[examTrip].on+(examTrip==="back"?"（回程）":""),TT.on,"ok"],[TRIP[examTrip].need,TT.need,""],[TRIP[examTrip].miss,TT.miss,TT.miss?"warn":"ok"],["請假",TT.leave,""],[ST_LABEL.self[examTrip],TT.self,""],["事先不搭",nOut,""]].forEach(([l,n,c])=>{
+    const x=el("div","ex-tt "+c); x.append(el("b",null,String(n)), el("span",null,l)); tl.append(x); });
+  sum.append(tl); box.append(sum);
+  /* 車次分頁 */
+  const tabs=el("div","ex-tabs");
+  EXAM.buses.forEach((b,i)=>{ const r=busStat(i), x=el("button","ex-tab"); x.type="button"; x.style.setProperty("--bc",b.c); x.style.setProperty("--bbg",b.bg);
+    x.setAttribute("aria-pressed",i===examBus); x.append(el("b",null,b.n), el("span",null,`${busTotal(i)} 人｜${r.on}/${r.need} ${examTrip==="card"?"已收":"上車"}`));
+    x.onclick=()=>{examBus=i; render();}; tabs.append(x); });
+  box.append(tabs);
+  const b=EXAM.buses[examBus], r=busStat(examBus), card=el("div","ex-card"+(examTrip==="card"?" trip-card":"")); card.style.setProperty("--bc",b.c); card.style.setProperty("--bbg",b.bg);
+  const head=el("div","ex-head");
+  const h=el("h3",null,b.n); const CAPB=b.cap||BUS_CAP, over=!/小車/.test(b.n) && busTotal(examBus)>CAPB; h.append(el("small",over?"over":null,`學生 ${busCount(b)} ＋ 老師 ${busT(examBus).filter(x=>!x.drv).length} ＝ ${busTotal(examBus)} 人${over?"（超過 "+CAPB+" 人！）":""}`));
+  const l0=el("div","ex-line"); l0.append(el("b",null,"考試級數"), b.lv||"—");
+  const l1=el("div","ex-line"); l1.append(el("b",null,"班級"), b.cls.length?b.cls.map(cc=>`${cc}（${EXAM.level[cc]}）`).join("、"):"（只有老師）");
+  const l2=el("div","ex-line"); l2.append(el("b",null,"隨車老師"), busT(examBus).map(x=>x.n+(x.drv?"（"+x.drv+"）":"")).join("、")||"（無）");
+  const marks=el("div","marks");
+  [["board",TRIP[examTrip].mark],["leave","請假"],["self",ST_LABEL.self[examTrip]]].forEach(([k,lab])=>{ const x=el("button","mk mk-"+k,lab); x.type="button"; x.setAttribute("aria-pressed",examMark===k); x.onclick=()=>{examMark=k; render();}; marks.append(x); });
+  const tip={board:TRIP[examTrip].tip,leave:"點名字＝標記請假（去程請假會一起標回程）。再點一次取消。",self:`點名字＝標記${ST_LABEL.self[examTrip]}，再點一次取消。`}[examMark];
+  const board=el("div","board",`${examTrip==="card"?"健保卡":TRIP[examTrip].n}${TRIP[examTrip].on} ${r.on} / ${TRIP[examTrip].need} ${r.need} 人`+(r.leave.length?`・請假 ${r.leave.length}`:"")+(r.self.length?`・${ST_LABEL.self[examTrip]} ${r.self.length}`:""));
+  head.append(h,l0,l1,l2,el("div","mk-label","點名字時要做什麼："),marks,el("div","mk-tip",tip),board);
+  if(r.miss.length && r.miss.length<=15){ const m=el("div","miss"); m.append(el("b",null,TRIP[examTrip].miss+"："), r.miss.map(x=>x.name).join("、")); head.append(m); }
+  const body=el("div","ex-body");
+  b.cls.forEach(cc=>{ const kids=exKids(cc); const t=el("div","ex-cls",cc); t.append(el("small",null,`考 ${EXAM.level[cc]}・${kids.length} 人`)); body.append(t);
+    const g=el("div","ex-grid"); kids.forEach(s=>g.append(kidBtn(s.id,s.zh,s.en))); body.append(g); });
+  const tt=el("div","ex-cls tsec","隨車老師"); tt.append(el("small",null,busT(examBus).length+" 人"));
+  const mvb=el("button","mvbtn"+(tMove?" on":""),tMove?"完成換車":"老師換車"); mvb.type="button"; mvb.disabled=!canWrite;
+  mvb.onclick=()=>{ tMove=!tMove; tSel=null; render(); }; tt.append(mvb); body.append(tt);
+  if(tMove) body.append(el("div","mk-tip tsec","點一位老師，再選要換到哪一台車。學生不會移動。"));
+  const tg=el("div","ex-grid tsec");
+  busT(examBus).forEach(x=>{
+    const kb=kidBtn(x.k,x.n,x.drv||"老師",true); if(x.drv) kb.classList.add("drv");
+    if(tMove){ kb.classList.add("movable"); if(tSel===x.k) kb.classList.add("sel"); kb.onclick=()=>{ tSel = tSel===x.k ? null : x.k; render(); }; }
+    tg.append(kb); });
+  body.append(tg);
+  if(tMove && tSel){
+    const x=TEACHERS.find(y=>y.k===tSel); const row=el("div","mvrow"); row.append(el("span",null,`把 ${x.n} 換到：`));
+    EXAM.buses.forEach((bb,j)=>{ if(j===examBus) return; const big=!/小車/.test(bb.n);
+      const btn=el("button","mvto",bb.n); btn.type="button"; btn.style.setProperty("--bc",bb.c);
+      btn.append(el("small",null,`目前 ${busTotal(j)} 人${big&&busTotal(j)>=(bb.cap||BUS_CAP)?"・已滿":""}`));
+      btn.onclick=()=>{ tSel=null; save(EXAM.key+"tb2_"+x.k,{bus:j}); }; row.append(btn); });
+    body.append(row);
+  }
+  /* 請假／自行前往 備註 */
+  const ex=[...r.leave.map(x=>[x,"leave"]),...r.self.map(x=>[x,"self"])];
+  if(ex.length){
+    const nb=el("div","ex-notes"); nb.append(el("div","ex-cls","請假／"+ST_LABEL.self[examTrip]+" 備註"));
+    ex.forEach(([x,st])=>{ const row=el("div","nrow"); row.append(el("span","ntag st-"+st,stText(st)), el("span","nname",`${x.name}`), el("span","nsub",x.sub));
+      const inp=document.createElement("input"); inp.className="note"+(exState(x.k).why?" has":""); inp.placeholder="原因（例：發燒、家長載）"; inp.maxLength=40; inp.value=exState(x.k).why||""; inp.id="note-"+EXAM.key+x.k; inp.dataset.id=EXAM.key+x.k; inp.disabled=!canWrite;
+      inp.addEventListener("change",()=>save(EXAM.key+x.k,{why:inp.value.trim()})); row.append(inp); nb.append(row); });
+    body.append(nb);
+  }
+  card.append(head,body); box.append(card);
+  const out=el("div","ex-out"); out.append(el("b",null,"事先確定不搭遊覽車"), document.createElement("br"));
+  Object.entries(EXAM.out).forEach(([id,why])=>{ const s=stu[id]; if(s){ out.append(`${s.c} ${s.zh} ${s.en}（${why}）`, document.createElement("br")); } });
+  out.append("H1B 蔡思妍（不參加，要補考）");
+  box.append(out, el("div","ex-note","點名會即時同步，每位老師的手機都看得到誰已經上車。"));
+}
+/* ---------- 烤肉分組（高年級配低年級，一桌 10 人，可拖拉調換） ---------- */
+const BBQ = { key:"bbq_", size:10 };
+let bbqMode=false, bbqSel=null;
+const CLS_ORDER = ROSTER.map(c=>c.c);
+/* 烤肉：不參加的人不算；自行前往的人也要一起烤肉 */
+const isSkip = id => /不參加/.test(EXAM.out[id]||"");
+const bbqAll = () => ROSTER.flatMap(c=>c.st.map(s=>({...s,c:c.c})));
+const bbqKids = () => bbqAll().filter(s=>!isSkip(s.id));
+const BBQ_N = Math.ceil(bbqKids().length / BBQ.size);
+/* 特別區：-1 自行前往、-2 不參加（可以把小朋友移進來） */
+const BBQ_SPECIAL = [{tb:-1,n:"自行前往",en:"Going on own"},{tb:-2,n:"不參加",en:"Not attending"}];
+const tbName = tb => tb>=0 ? `第 ${tb+1} 桌` : (BBQ_SPECIAL.find(x=>x.tb===tb)||{}).n || "?";
+/* 每桌負責老師：同一位老師可以負責好幾桌。存在 bbqT_T?（tbs = "0,3" 桌號清單） */
+const legacyT = i => (state["bbqt_"+i]||{}).t || "";
+const tTables = x => { const d=state["bbqT_"+x.k]||{};
+  if(typeof d.tbs==="string") return d.tbs ? d.tbs.split(",").map(Number).filter(n=>n>=0) : [];
+  if(Number.isInteger(d.tb)) return d.tb>=0 ? [d.tb] : [];
+  const out=[]; for(let i=0;i<20;i++){ if(legacyT(i) && legacyT(i).split(/[、,，\s]+/).some(n=>n && (n===x.n || x.n.includes(n) || n.includes(x.n.replace(/老師$/,""))))) out.push(i); } return out; };
+const tablesT = i => TEACHERS.filter(x=>tTables(x).includes(i));
+const tableTeacher = i => tablesT(i).map(x=>x.n).join("、");
+/* 名牌代號：老師區 "T:T3"；桌上 "T:T3@5"（第 6 桌上的那張） */
+const isTid = id => typeof id==="string" && id.startsWith("T:");
+const tParse = id => { const [k,at]=id.slice(2).split("@"); return {x:TEACHERS.find(y=>y.k===k), at: at===undefined ? null : +at}; };
+const selTable = id => isTid(id) ? (tParse(id).at ?? -9) : bbqTable(id);
+function tSet(x, arr){ const v=[...new Set(arr)].filter(n=>n>=0).sort((a,b)=>a-b).join(","); if(v!==tTables(x).join(",")) save("bbqT_"+x.k,{tbs:v}); }
+/* 把老師名牌放到 dest：從老師區＝加一桌；從某桌＝換桌；dest = -9 ＝取消那一桌 */
+function bbqTMove(tid, dest){ const {x,at}=tParse(tid); if(!x || dest===-1 || dest===-2) return;
+  let arr=tTables(x); if(at!==null) arr=arr.filter(n=>n!==at); if(dest>=0) arr=[...arr,dest]; tSet(x,arr); }
+function tChip(x, at){ const id="T:"+x.k+(at===undefined?"":"@"+at);
+  const k=el("button","bk tk"+(bbqSel===id?" sel":"")); k.type="button"; k.dataset.id=id; k.disabled=!canWrite;
+  const n=tTables(x).length;
+  k.append(el("span","zh",x.n), el("span","meta", at===undefined ? (n?`負責 ${n} 桌`:"還沒負責") : "老師"));
+  if(at!==undefined){ const xx=el("span","tx","×"); xx.title="取消負責這桌"; k.append(xx); }
+  return k; }
+/* 自動分組：同班盡量坐一起。低年級班（K2、H2 級）由小到大排、高年級班（H3 級以上）由大到小排，
+   各切成 BBQ_N 段連續的人，第 i 段低年級配第 i 段高年級 → 每桌大多只有 1～2 個班，而且高低年級都有 */
+const LOW_CLS = ["H1","H1A","H1B","H2A","H2B","H3"];
+const BBQ_AUTO = (()=>{
+  const kids=bbqKids(), byCls=c=>kids.filter(s=>s.c===c);
+  const low=LOW_CLS.flatMap(byCls), high=CLS_ORDER.filter(c=>!LOW_CLS.includes(c)).reverse().flatMap(byCls);
+  const N=BBQ_N, size=(len,i)=>Math.floor(len/N)+(i<len%N?1:0);
+  // 高年級多的段配低年級少的段，讓每桌接近 10 人
+  const lowSizes=[...Array(N)].map((_,i)=>size(low.length,i)).sort((a,b)=>b-a);
+  const highSizes=[...Array(N)].map((_,i)=>size(high.length,i)).sort((a,b)=>a-b);
+  const m={}; let li=0, hi=0;
+  for(let i=0;i<N;i++){
+    for(let j=0;j<lowSizes[i];j++) m[low[li++].id]=i;
+    for(let j=0;j<highSizes[i];j++) m[high[hi++].id]=i;
+  }
+  return m;
+})();
+const bbqTable = id => { const v=(state[BBQ.key+id]||{}).tb; return Number.isInteger(v) ? v : (isSkip(id) ? -2 : BBQ_AUTO[id]); };
+const band = g => g>=5 ? "hi" : g>=3 ? "mid" : "lo";
+function bbqMove(id, tb){ if(bbqTable(id)!==tb) save(BBQ.key+id,{tb}); }
+function bbqSwap(a,b){ const ta=bbqTable(a), tb=bbqTable(b); if(ta===tb) return; save(BBQ.key+a,{tb:tb}); save(BBQ.key+b,{tb:ta}); }
+function renderBbq(){
+  const box=$("#bbq"); box.textContent="";
+  const all=bbqAll(), kids=all.filter(s=>bbqTable(s.id)>=0);
+  const nSelf=all.filter(s=>bbqTable(s.id)===-1).length, nNo=all.filter(s=>bbqTable(s.id)===-2).length, nT=TEACHERS.length;
+  const nJoin=kids.length+nSelf;
+  box.append(el("h2","ex-title","烤肉分組"));
+  box.append(el("div","ex-sub",`${BBQ_N} 桌，每桌約 ${BBQ.size} 人。高年級和低年級混在一起。`));
+  /* 總人數回報 */
+  const sum=el("div","bbq-sum");
+  const tiles=el("div","bbq-tiles");
+  [["學生總數",all.length,""],["參加烤肉",nJoin,"ok"],["坐桌",kids.length,""],["自行前往",nSelf,""],["不參加",nNo,"no"],["老師",nT,""],["參加總人數",nJoin+nT,"big"]].forEach(([l,n,c])=>{
+    const x=el("div","bbq-tile "+c); x.append(el("b",null,String(n)), el("span",null,l)); tiles.append(x); });
+  sum.append(tiles);
+  const rep=()=>{ const L=[`11/15 烤肉人數回報`,`參加總人數：${nJoin+nT} 人（學生 ${nJoin} ＋ 老師 ${nT}）`,`學生：坐桌 ${kids.length}、自行前往 ${nSelf}、不參加 ${nNo}（共 ${all.length}）`];
+    [...Array(BBQ_N).keys()].forEach(i=>{ const n=all.filter(s=>bbqTable(s.id)===i).length; L.push(`第 ${i+1} 桌：${n} 人${tableTeacher(i)?"（負責："+tableTeacher(i)+"）":""}`); });
+    const self=all.filter(s=>bbqTable(s.id)===-1), no=all.filter(s=>bbqTable(s.id)===-2);
+    if(self.length) L.push(`自行前往：${self.map(s=>s.zh).join("、")}`); if(no.length) L.push(`不參加：${no.map(s=>s.zh).join("、")}`);
+    return L.join("\n"); };
+  const rb=el("button","btn ghost sm","複製人數回報"); rb.type="button"; rb.onclick=()=>eqCopy(rb, rep(), "複製人數回報");
+  const per=el("div","bbq-per");
+  [...Array(BBQ_N).keys()].forEach(i=>{ const n=all.filter(s=>bbqTable(s.id)===i).length; const c=el("span","bbq-perc"+(n>BBQ.size?" over":"")); c.append(el("b",null,`${i+1}`), ` ${n}人`); per.append(c); });
+  sum.append(per, rb); box.append(sum);
+  const help=el("div","bbq-help");
+  help.append(el("b",null,"怎麼調換："), "電腦用滑鼠把小朋友拖到另一位小朋友身上＝兩人交換；拖到別桌的空白處＝移過去。手機／平板：先點一位小朋友（會變黃色），再點另一位＝交換；或點別桌的「移到這桌」。");
+  const tools=el("div","bbq-tools");
+  const legend=el("div","bbq-legend"); legend.append(el("span","k hi","5–6 年級"), el("span","k mid","3–4 年級"), el("span","k lo","2 年級"));
+  const cp=el("button","btn ghost sm","複製分組文字"); cp.type="button";
+  const dl=el("button","btn sm","下載分組名單"); dl.type="button";
+  const rs=el("button","btn ghost sm","恢復自動分組"); rs.type="button";
+  tools.append(legend, cp, dl);
+  box.append(help, tools);
+  const tables=[...Array(BBQ_N)].map(()=>[]);
+  const special={}; BBQ_SPECIAL.forEach(z=>special[z.tb]=[]);
+  all.forEach(s=>{ const t=bbqTable(s.id); if(t<0) (special[t]||special[-2]).push(s); else (tables[t]||tables[0]).push(s); });
+  Object.values(special).forEach(list=>list.sort((a,b)=>CLS_ORDER.indexOf(a.c)-CLS_ORDER.indexOf(b.c)));
+  tables.forEach(list=>list.sort((a,b)=>(b.g||0)-(a.g||0) || CLS_ORDER.indexOf(a.c)-CLS_ORDER.indexOf(b.c)));
+  const grid=el("div","bbq-grid");
+  const mkCard=(list,i,zone)=>{
+    const card=el("section","bbq-table"+(zone?" zone":"")); card.dataset.tb=i;
+    const h=el("div","bbq-head"); h.append(el("b",null,zone?zone.n:`第 ${i+1} 桌`));
+    const cnt={hi:0,mid:0,lo:0}; list.forEach(s=>cnt[band(s.g)]++);
+    h.append(el("span","bbq-cnt"+(!zone&&list.length>BBQ.size?" over":""),`${list.length} 人`));
+    const sub=el("div","bbq-sub",zone?(zone.tb===-1?"自己去烤肉場地的小朋友":"這次不參加烤肉的小朋友"):`高 ${cnt.hi}・中 ${cnt.mid}・低 ${cnt.lo}`);
+    let tch=null;
+    if(!zone){ tch=el("div","bbq-tch"); tch.append(el("span","bbq-tch-l","負責老師"));
+      const tl=el("div","bbq-tlist"); const ts=tablesT(i);
+      ts.forEach(x=>tl.append(tChip(x,i)));
+      if(!ts.length) tl.append(el("span","bbq-tnone","把老師拖到這桌"));
+      tch.append(tl); }
+    const ul=el("div","bbq-list");
+    list.forEach(s=>{
+      const k=el("button","bk "+band(s.g)+(bbqSel===s.id?" sel":"")); k.type="button"; k.dataset.id=s.id; k.disabled=!canWrite;
+      k.append(el("span","zh",s.zh), el("span","en",s.en||""), el("span","meta",`${s.c}・${s.g||"?"}年`));
+      if(findHi===s.id) k.classList.add("flash");
+      ul.append(k);
+    });
+    if(!list.length) ul.append(el("div","bbq-empty",zone?"（目前沒有人）":"（空桌）"));
+    const selT=isTid(bbqSel)?tParse(bbqSel):null;
+    const mv=el("button","bbq-move",zone?"移到這裡":(selT&&selT.at===null?"加到這桌":"移到這桌")); mv.type="button";
+    mv.hidden=!bbqSel || selTable(bbqSel)===i || (selT && (!!zone || tTables(selT.x).includes(i)));
+    mv.onclick=()=>{ const id=bbqSel; bbqSel=null; if(isTid(id)) bbqTMove(id,i); else bbqMove(id,i); render(); };
+    card.append(h,sub); if(tch) card.append(tch); card.append(ul,mv); return card;
+  };
+  tables.forEach((list,i)=>grid.append(mkCard(list,i,null)));
+  const pool=el("section","bbq-table tpool"); pool.dataset.tb=-9;
+  const ph=el("div","bbq-head"); const free=TEACHERS.filter(x=>!tTables(x).length);
+  ph.append(el("b",null,"老師名牌"), el("span","bbq-cnt",`還沒負責 ${free.length} 位`)); pool.append(ph);
+  pool.append(el("div","bbq-sub","把老師拖到桌子上＝負責那桌。同一位老師可以拖到好幾桌，一桌也可以好幾位。桌上老師名牌按「×」＝取消。手機：先點老師，再點那桌的「加到這桌」。"));
+  const pl=el("div","bbq-tlist"); TEACHERS.forEach(x=>pl.append(tChip(x))); pool.append(pl);
+  const pmv=el("button","bbq-move","移到這裡（取消負責這桌）"); pmv.type="button"; pmv.hidden=!(isTid(bbqSel) && selTable(bbqSel)>=0);
+  pmv.onclick=()=>{ const id=bbqSel; bbqSel=null; bbqTMove(id,-9); render(); }; pool.append(pmv);
+  box.append(pool, grid);
+  box.append(el("h3","bbq-zone-title","自行前往／不參加"));
+  const zg=el("div","bbq-grid zones"); BBQ_SPECIAL.forEach(z=>zg.append(mkCard(special[z.tb],z.tb,z))); box.append(zg);
+  let dl2=document.getElementById("tchOpts"); if(!dl2){ dl2=document.createElement("datalist"); dl2.id="tchOpts"; document.body.append(dl2); }
+  dl2.textContent=""; TEACHERS.forEach(x=>{ const o=document.createElement("option"); o.value=x.n; dl2.append(o); });
+  const text=()=>["烤肉分組（參加 "+kids.length+" 人）",...tables.map((l,i)=>`第 ${i+1} 桌（${l.length} 人${tableTeacher(i)?"｜負責："+tableTeacher(i):""}）：`+l.map(s=>`${s.zh}(${s.c})`).join("、")),
+    ...BBQ_SPECIAL.filter(z=>special[z.tb].length).map(z=>`${z.n}（${special[z.tb].length} 人）：`+special[z.tb].map(s=>`${s.zh}(${s.c})`).join("、"))].join("\n");
+  cp.onclick=async()=>{ try{ await navigator.clipboard.writeText(text()); cp.textContent="已複製 ✓"; }catch(_){ const ta=document.createElement("textarea"); ta.value=text(); document.body.append(ta); ta.select(); try{document.execCommand("copy"); cp.textContent="已複製 ✓";}catch(__){} ta.remove(); } setTimeout(()=>cp.textContent="複製分組文字",1800); };
+  dl.onclick=()=>{ const rows=[["桌次","負責老師","班級","姓名","英文名","年級"]]; tables.forEach((l,i)=>l.forEach(s=>rows.push([`第 ${i+1} 桌`,tableTeacher(i),s.c,s.zh,s.en,s.g||""])));
+    BBQ_SPECIAL.forEach(z=>special[z.tb].forEach(s=>rows.push([z.n,"",s.c,s.zh,s.en,s.g||""]))); dlCsv(rows,"烤肉分組名單.csv"); };
+  let armed=false;
+  rs.onclick=()=>{ if(!armed){ armed=true; rs.textContent="再按一次確定恢復"; setTimeout(()=>{armed=false; rs.textContent="恢復自動分組";},3000); return; }
+    kids.forEach(s=>{ if(Number.isInteger((state[BBQ.key+s.id]||{}).tb)) save(BBQ.key+s.id,{tb:null}); }); bbqSel=null; };
+}
+/* ---------- 細流＋老師個人行程 ---------- */
+/* who：老師名字陣列，或 "ALL" 全體、"BUS" 大車隨車老師（照分車名單即時對應）、"VAN" 小車老師 */
+const SHORT = {"希橙":"希橙","采希":"采希","黃意晴":"意晴","陳茄茂":"茄茂","Renelyn":"Lyn","張育惠":"育惠","Kiki老師":"Kiki","張珈銘":"珈銘","蔡宣卉":"宣卉","蔡語芯":"語芯","賴依庭":"依庭"};
+const sName = n => SHORT[n] || n;
+const CARE = "收健保卡放進夾鏈袋、檢查學生攜帶物品、提醒學生把包包關好";
+const PLAN = [
+  {t:"07:50", title:"老師集合（補習班辦公室）", items:[
+    {who:"ALL", do:"到補習班辦公室集合"},
+    {who:["黃意晴"], do:"拿早餐"}]},
+  {t:"07:50–08:00", title:"說明今日注意事項", items:[
+    {who:"ALL", do:"簡單說明、討論今日注意事項"}]},
+  {t:"08:00–08:30", title:"學生報到", check:true, note:"老師上樓到教室時就戴上耳機，用 Zello 聯繫。", items:[
+    {who:["Maggie","Jackie","張育惠"], do:"門口點名（A3 名單，學生到了就劃掉）"},
+    {who:["黃意晴"], do:"櫃檯"},
+    {who:["張珈銘"], do:"最後清點器材、搬上車"},
+    {who:["蔡宣卉","蔡語芯","采希"], do:"支援集合教室所需物品（樓下待命，教室老師可以呼叫上樓）"},
+    {who:["Cherry","邱老師"], do:"A1 教室（A 車學生）："+CARE+"；收好的健保卡交給邱老師保管"},
+    {who:["陳茄茂","Vicky"], do:"B2 教室（B 車學生）："+CARE+"；收好的健保卡交給茄茂保管"},
+    {who:["賴依庭","Renelyn"], do:"C1 教室（C 車學生）："+CARE+"；收好的健保卡交給依庭保管"},
+    {who:["蔡老師"], do:"去開遊覽車"},
+    {who:["Kiki老師"], do:"拍照記錄"}]},
+  {t:"08:30–09:00", title:"準備上車", check:true, note:"預計 09:00 出發，實際看遊覽車司機到達時間。全部的車都到齊、點名完，才一起出發。", items:[
+    {who:["Cherry","邱老師","陳茄茂","Vicky","賴依庭","Renelyn"], do:"08:30 提醒學生上廁所、準備上車；司機到了帶學生下樓上車"},
+    {who:["Maggie","Jackie","張育惠","黃意晴"], do:"聯繫 08:30 還沒到的學生家長"},
+    {who:["黃意晴"], do:"司機到了，廣播請各車下樓上車"},
+    {who:"BUS", do:"跟教室老師一起帶學生上車；上車後用網頁點名、確認人數、回報群組"},
+    {who:["蔡老師"], do:"開 C 車（C 車司機）"},
+    {who:["Kiki老師"], do:"拍照記錄"},
+    {who:["張珈銘"], do:"器材搬上車"},
+    {who:["蔡宣卉","蔡語芯","采希"], do:"樓下支援"}]},
+  {t:"09:00–10:00", title:"車程（預計 10:00 到考場）", items:[
+    {who:"BUS", do:"在車上照顧學生"},
+    {who:["蔡老師"], do:"開 C 車（C 車司機）"},
+    {who:["Maggie"], do:"A 車：複習英檢考試內容（K2、H4）"},
+    {who:["Jackie"], do:"B 車：複習英檢考試內容（H2、H3）"},
+    {who:["Renelyn"], do:"C 車：複習英檢考試內容（H2、H5、H6）"},
+    {who:"VAN", do:"坐小車前往考場"}]},
+  {t:"10:00", title:"抵達考場", items:[
+    {who:"VAN", do:"先到考場，找全體可以集合的位置"},
+    {who:"ALL", do:"大廣場集合，按級數排隊"},
+    {who:["Jackie"], do:"⚠️ 先發准考證：交給各帶隊老師，再發給自己那一隊的學生"},
+    {who:"ALL", do:"發完准考證後拍大合照"}]},
+  {t:"10:30", title:"⚠️ 考前 20 分鐘：帶小朋友上廁所", items:[
+    {who:["Cherry","邱老師","陳茄茂","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","采希","黃意晴"], do:"10:30 開始帶自己那一隊去上廁所，上完直接帶到考場教室外排隊"},
+    {who:["希橙"], do:"協助 K2 小朋友上廁所（人最多、年紀最小）"},]},
+  {t:"10:50", title:"考試開始・帶隊進考場（全部在明誠樓）", note:"K2 考 50 分鐘（11:40 結束）；H2–H4 考 60 分鐘（11:50 結束）；H5–H6 考 70 分鐘（12:00 結束）。每個級數一間教室。點老師名字可以看他那一隊的學生和准考證號碼。", items:[
+    {who:["Cherry"], do:"K2・明誠樓023教室：帶 H1A（11:40 結束）", team:["H1A"]},
+    {who:["邱老師"], do:"K2・明誠樓023教室：帶 H1B、H1（11:40 結束）", team:["H1B","H1"]},
+    {who:["陳茄茂"], do:"H2・明誠樓034教室：帶 H2A（11:50 結束）", team:["H2A"]},
+    {who:["采希"], do:"H2・明誠樓034教室：帶 H2B（11:50 結束）", team:["H2B"]},
+    {who:["Vicky"], do:"H2・明誠樓034教室：帶 H3（11:50 結束）", team:["H3"]},
+    {who:["Jackie","Renelyn"], do:"H3・明誠樓035教室：帶 H4A（11:50 結束）", team:["H4A"]},
+    {who:["張珈銘"], do:"H3・明誠樓035教室：帶 H4（11:50 結束）", team:["H4"]},
+    {who:["Maggie"], do:"H4・明誠樓036教室：帶 H5（11:50 結束）", team:["H5"]},
+    {who:["張育惠"], do:"H5・明誠樓037教室：帶 H6（12:00 結束）", team:["H6"]},
+    {who:["賴依庭"], do:"H6・明誠樓042教室：帶 H6C（12:00 結束）", team:["H6C"]},
+    {who:["黃意晴"], do:"H6・明誠樓042教室：帶 H7A（12:00 結束）；醫藥包、家長電話隨身帶著", team:["H7A"]},
+    {who:["希橙"], do:"支援 K2 級數，幫忙顧小朋友"},
+    {who:["Cherry","邱老師","陳茄茂","采希","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","黃意晴"], do:"📸 帶進教室時拍照記錄小朋友在考場的樣子"},
+    {who:["蔡老師"], do:"去停遊覽車"},
+    {who:["Kiki老師","蔡宣卉","蔡語芯"], do:"📸 拍照記錄"}]},
+  {t:"11:40–12:00", title:"考完出來・回大廣場", note:"K2 11:40 先出來，H2–H4 11:50，H5–H6 12:00。集合完要直接上車去農場烤肉。", items:[
+    {who:["Cherry","邱老師","陳茄茂","采希","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","黃意晴","希橙"], do:"⚠️ 提醒小朋友離開考場要保持安靜"},
+    {who:["Cherry","邱老師","陳茄茂","采希","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","黃意晴"], do:"📸 拍下小朋友考完出來雀躍的表情，再帶回大廣場"},
+    {who:["Cherry","邱老師","陳茄茂","采希","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","黃意晴","希橙"], do:"在大廣場等其他級數考完；可以先分批帶去上廁所"},
+    {who:["Kiki老師","蔡宣卉","蔡語芯"], do:"📸 拍照記錄"}]},
+  {t:"12:00", title:"全部考完・大廣場分回 ABC 車", items:[
+    {who:["Cherry","邱老師","陳茄茂","采希","Vicky","Jackie","Renelyn","張珈銘","Maggie","張育惠","賴依庭","黃意晴"], do:"確認最後一批學生也上完廁所"},
+    {who:"BUS", do:"在大廣場按 ABC 車排好隊，負責自己那台車的學生"},
+    {who:["黃意晴"], do:"聯絡遊覽車司機，確認小朋友上車時間"}]},
+  {t:"12:10–12:40", title:"上車・前往日月山景休閒農場（車程約 30 分鐘）", items:[
+    {who:"BUS", do:"帶學生上車，上車後用網頁點名、回報群組"},
+    {who:"BUS", do:"⚠️ 下車前提醒小朋友：識別證上有寫桌次，例如「A11」＝A 車、烤肉第 11 桌，數字是幾就坐第幾桌"},
+    {who:["蔡老師"], do:"開 C 車（C 車司機）"},
+    {who:"VAN", do:"坐小車先到農場，先負責生火"}]},
+  {t:"12:40", title:"抵達農場・按桌次入座、烤肉", note:"食材不用發，農場都準備好了。過程中會有一些活動，也可以唱歌。", items:[
+    {who:"VAN", do:"生火"},
+    {who:"BUS", do:"帶學生下車，照識別證上的桌次入座"},
+    {who:"BBQ", do:"依照烤肉分組，負責自己的桌次"},
+    {who:["蔡老師"], do:"停好遊覽車後過來架設活動、唱歌的設備"},
+    {who:["Kiki老師","蔡宣卉","蔡語芯"], do:"📸 拍照記錄"}]},
+  {t:"吃完之後", title:"看牛看羊・大草皮集合", items:[
+    {who:"BBQ", do:"先吃完的桌次，三桌三桌一組，由負責老師帶去看牛、看羊"},
+    {who:"BBQ", do:"看完帶到大草皮集合，小朋友可以在那邊放風"},
+    {who:["Kiki老師","蔡宣卉","蔡語芯"], do:"📸 拍照記錄"}]},
+  {t:"15:30", title:"活動結束・上車回補習班", items:[
+    {who:"BUS", do:"⚠️ 上車前提醒小朋友先去上廁所、確認身邊的用品都有帶到"},
+    {who:"BUS", do:"上車後用網頁回程點名、回報群組"},
+    {who:["Kiki老師"], do:"上車要離開農場時，發送校園訊息給家長（訊息內容在 Kiki 個人行程最下面，可以直接複製）"},
+    {who:["蔡老師"], do:"開 C 車（C 車司機）"}]},
+  {t:"16:30", title:"回到補習班・發健保卡・交給家長", items:[
+    {who:["黃意晴"], do:"先搭小車回補習班，疏導家長"},
+    {who:["邱老師","陳茄茂","賴依庭"], do:"快到補習班時，在遊覽車上把健保卡發回給小朋友（A 車邱老師、B 車茄茂、C 車依庭）"},
+    {who:"BUS", do:"遊覽車停在補習班上面那邊等，等意晴通知再帶小朋友下車"}]}
+];
+const BAG_ALL = ["衛生紙","奇異筆","口罩","手機（充飽電）","行動電源","水","防蚊液","夾鏈袋","耳機（Zello）"];
+const BAG_EXTRA = {
+  "Maggie":["K2、H4 隨身講義（A 車複習用）"],
+  "Jackie":["H2、H3 隨身講義（B 車複習用）","⚠️ 准考證（很重要！）"],
+  "Renelyn":["H2、H5、H6 隨身講義（C 車複習用）"],
+  "黃意晴":["家長聯絡電話","醫藥包","口罩"],
+  "賴依庭":["C 車健保卡（夾鏈袋）保管"],
+  "邱老師":["A 車健保卡（夾鏈袋）保管"],
+  "陳茄茂":["B 車健保卡（夾鏈袋）保管"]
+};
+/* 個人行程最下面的附加內容（例如要發的訊息） */
+const PERSON_NOTES = {
+  "Kiki老師":[{title:"📱 校園訊息（離開農場上車時發送）", text:
+`【空中美語名間分校】親愛的家長您好 😊
+今天孩子們勇敢挑戰了英檢考試，也在農場開心烤肉、看牛看羊，度過了充實又快樂的一天！謝謝孩子們的努力，大家都表現得很棒 👏
+遊覽車回到補習班後，老師會依序帶孩子下車，請家長在補習班門口稍候，並依現場老師的指示接孩子回家。
+謝謝家長們一路以來的支持與配合，也請幫我們好好抱抱今天辛苦的孩子們 ❤️`}]
+};
+let planMode=false, planView="all", planWho=null;
+function whoList(w){
+  if(w==="ALL") return TEACHERS.map(x=>x.n);
+  if(w==="BUS") return TEACHERS.filter(x=>tBus(x)<3 && !x.drv).map(x=>x.n);
+  if(w==="VAN") return TEACHERS.filter(x=>tBus(x)===3).map(x=>x.n);
+  if(w==="BBQ") return TEACHERS.filter(x=>tTables(x).length).map(x=>x.n);
+  return w;
+}
+function whoLabel(w){ return w==="ALL"?"全體老師":w==="BUS"?"各車隨車老師":w==="VAN"?"小車老師":w==="BBQ"?"各桌負責老師":null; }
+const TICKETS = {"H2B-01": {"no": "21200034", "room": "明誠樓034教室"}, "H2B-02": {"no": "21200035", "room": "明誠樓034教室"}, "H2B-03": {"no": "21200036", "room": "明誠樓034教室"}, "H2B-04": {"no": "21200037", "room": "明誠樓034教室"}, "H2B-05": {"no": "21200038", "room": "明誠樓034教室"}, "H2B-06": {"no": "21200039", "room": "明誠樓034教室"}, "H2B-07": {"no": "21200040", "room": "明誠樓034教室"}, "H2B-08": {"no": "21200041", "room": "明誠樓034教室"}, "H2B-09": {"no": "21200042", "room": "明誠樓034教室"}, "H2B-10": {"no": "21200043", "room": "明誠樓034教室"}, "H2A-01": {"no": "21200044", "room": "明誠樓034教室"}, "H2A-02": {"no": "21200045", "room": "明誠樓034教室"}, "H2A-04": {"no": "21200046", "room": "明誠樓034教室"}, "H2A-05": {"no": "21200047", "room": "明誠樓034教室"}, "H2A-06": {"no": "21200048", "room": "明誠樓034教室"}, "H2A-07": {"no": "21200049", "room": "明誠樓034教室"}, "H2A-03": {"no": "21200050", "room": "明誠樓034教室"}, "H3-01": {"no": "21200051", "room": "明誠樓034教室"}, "H3-02": {"no": "21200052", "room": "明誠樓034教室"}, "H3-03": {"no": "21200053", "room": "明誠樓034教室"}, "H3-04": {"no": "21200054", "room": "明誠樓034教室"}, "H3-05": {"no": "21200055", "room": "明誠樓034教室"}, "H3-06": {"no": "21200056", "room": "明誠樓034教室"}, "H3-08": {"no": "21200057", "room": "明誠樓034教室"}, "H3-09": {"no": "21200058", "room": "明誠樓034教室"}, "H3-10": {"no": "21200059", "room": "明誠樓034教室"}, "H3-14": {"no": "21200060", "room": "明誠樓034教室"}, "H3-13": {"no": "21200061", "room": "明誠樓034教室"}, "H3-07": {"no": "21200062", "room": "明誠樓034教室"}, "H3-11": {"no": "21200063", "room": "明誠樓034教室"}, "H3-12": {"no": "21200064", "room": "明誠樓034教室"}, "H4-01": {"no": "21300012", "room": "明誠樓035教室"}, "H4-02": {"no": "21300013", "room": "明誠樓035教室"}, "H4-03": {"no": "21300014", "room": "明誠樓035教室"}, "H4-04": {"no": "21300015", "room": "明誠樓035教室"}, "H4-05": {"no": "21300016", "room": "明誠樓035教室"}, "H4-06": {"no": "21300017", "room": "明誠樓035教室"}, "H4-07": {"no": "21300018", "room": "明誠樓035教室"}, "H4-08": {"no": "21300019", "room": "明誠樓035教室"}, "H4A-11": {"no": "21300020", "room": "明誠樓035教室"}, "H4A-12": {"no": "21300021", "room": "明誠樓035教室"}, "H4A-01": {"no": "21300022", "room": "明誠樓035教室"}, "H4A-02": {"no": "21300023", "room": "明誠樓035教室"}, "H4A-03": {"no": "21300024", "room": "明誠樓035教室"}, "H4A-04": {"no": "21300025", "room": "明誠樓035教室"}, "H4A-05": {"no": "21300026", "room": "明誠樓035教室"}, "H4A-06": {"no": "21300027", "room": "明誠樓035教室"}, "H4A-07": {"no": "21300028", "room": "明誠樓035教室"}, "H4A-08": {"no": "21300029", "room": "明誠樓035教室"}, "H4A-09": {"no": "21300030", "room": "明誠樓035教室"}, "H4A-10": {"no": "21300031", "room": "明誠樓035教室"}, "H4A-14": {"no": "21300032", "room": "明誠樓035教室"}, "H4A-13": {"no": "21300033", "room": "明誠樓035教室"}, "H5-01": {"no": "21400052", "room": "明誠樓036教室"}, "H5-02": {"no": "21400053", "room": "明誠樓036教室"}, "H5-03": {"no": "21400054", "room": "明誠樓036教室"}, "H5-04": {"no": "21400055", "room": "明誠樓036教室"}, "H5-05": {"no": "21400056", "room": "明誠樓036教室"}, "H5-06": {"no": "21400057", "room": "明誠樓036教室"}, "H5-07": {"no": "21400058", "room": "明誠樓036教室"}, "H5-08": {"no": "21400059", "room": "明誠樓036教室"}, "H5-10": {"no": "21400060", "room": "明誠樓036教室"}, "H5-09": {"no": "21400061", "room": "明誠樓036教室"}, "H5-11": {"no": "21400062", "room": "明誠樓036教室"}, "H5-12": {"no": "21400063", "room": "明誠樓036教室"}, "H5-13": {"no": "21400064", "room": "明誠樓036教室"}, "H5-14": {"no": "21400065", "room": "明誠樓036教室"}, "H6-01": {"no": "21500051", "room": "明誠樓037教室"}, "H6-02": {"no": "21500052", "room": "明誠樓037教室"}, "H6-03": {"no": "21500053", "room": "明誠樓037教室"}, "H6-04": {"no": "21500054", "room": "明誠樓037教室"}, "H6-05": {"no": "21500055", "room": "明誠樓037教室"}, "H6-06": {"no": "21500056", "room": "明誠樓037教室"}, "H6-07": {"no": "21500057", "room": "明誠樓037教室"}, "H6-08": {"no": "21500058", "room": "明誠樓037教室"}, "H6-09": {"no": "21500059", "room": "明誠樓037教室"}, "H6-10": {"no": "21500060", "room": "明誠樓037教室"}, "H6-11": {"no": "21500061", "room": "明誠樓037教室"}, "H6-12": {"no": "21500062", "room": "明誠樓037教室"}, "H6-13": {"no": "21500063", "room": "明誠樓037教室"}, "H6C-01": {"no": "21600003", "room": "明誠樓042教室"}, "H6C-02": {"no": "21600004", "room": "明誠樓042教室"}, "H6C-03": {"no": "21600005", "room": "明誠樓042教室"}, "H6C-04": {"no": "21600006", "room": "明誠樓042教室"}, "H6C-05": {"no": "21600007", "room": "明誠樓042教室"}, "H6C-06": {"no": "21600008", "room": "明誠樓042教室"}, "H6A-01": {"no": "21600010", "room": "明誠樓042教室"}, "H6A-02": {"no": "21600011", "room": "明誠樓042教室"}, "H6A-03": {"no": "21600012", "room": "明誠樓042教室"}, "H6A-04": {"no": "21600013", "room": "明誠樓042教室"}, "H6A-05": {"no": "21600014", "room": "明誠樓042教室"}, "H6A-06": {"no": "21600015", "room": "明誠樓042教室"}, "H6A-07": {"no": "21600016", "room": "明誠樓042教室"}, "H6A-08": {"no": "21600017", "room": "明誠樓042教室"}, "H6A-09": {"no": "21600018", "room": "明誠樓042教室"}, "H6A-10": {"no": "21600019", "room": "明誠樓042教室"}, "H1B-01": {"no": "20200021", "room": "明誠樓023教室"}, "H1B-06": {"no": "20200022", "room": "明誠樓023教室"}, "H1B-02": {"no": "20200023", "room": "明誠樓023教室"}, "H1B-07": {"no": "20200024", "room": "明誠樓023教室"}, "H1B-03": {"no": "20200025", "room": "明誠樓023教室"}, "H1B-04": {"no": "20200026", "room": "明誠樓023教室"}, "H1B-08": {"no": "20200027", "room": "明誠樓023教室"}, "H1B-09": {"no": "20200028", "room": "明誠樓023教室"}, "H1B-10": {"no": "20200029", "room": "明誠樓023教室"}, "H1B-05": {"no": "20200031", "room": "明誠樓023教室"}, "H1A-01": {"no": "20200032", "room": "明誠樓023教室"}, "H1A-02": {"no": "20200033", "room": "明誠樓023教室"}, "H1A-03": {"no": "20200034", "room": "明誠樓023教室"}, "H1A-04": {"no": "20200035", "room": "明誠樓023教室"}, "H1A-05": {"no": "20200036", "room": "明誠樓023教室"}, "H1A-06": {"no": "20200037", "room": "明誠樓023教室"}, "H1A-07": {"no": "20200038", "room": "明誠樓023教室"}, "H1A-08": {"no": "20200039", "room": "明誠樓023教室"}, "H1A-09": {"no": "20200040", "room": "明誠樓023教室"}, "H1A-10": {"no": "20200041", "room": "明誠樓023教室"}, "H1A-11": {"no": "20200042", "room": "明誠樓023教室"}, "H1A-12": {"no": "20200043", "room": "明誠樓023教室"}, "H1A-13": {"no": "20200044", "room": "明誠樓023教室"}, "H1A-14": {"no": "20200045", "room": "明誠樓023教室"}, "H1-01": {"no": "20200046", "room": "明誠樓023教室"}, "H1-02": {"no": "20200047", "room": "明誠樓023教室"}};
+const NOEXAM = id => (EXAM.out[id]||"").includes("不參加");
+function teamKids(cls){ return cls.flatMap(cc=>(ROSTER.find(c=>c.c===cc)||{st:[]}).st.filter(s=>!NOEXAM(s.id)).map(s=>({...s,c:cc}))); }
+function teamBox(cls, en){
+  const ks=teamKids(cls), w=el("div","pl-team");
+  w.append(el("div","pl-team-h",en?`Your group: ${ks.length} kids`:`這隊 ${ks.length} 人`));
+  const g=el("div","pl-team-g");
+  ks.forEach(s=>{ const x=el("div","pl-kid"); const tk=TICKETS[s.id]||{};
+    x.append(el("b",null,s.zh), el("span",null,`${s.en||""}・${s.c}`), el("code",null,tk.no||"—"));
+    if(EXAM.out[s.id]) x.append(el("em",null,en?"going on their own":"自行前往考場"));
+    g.append(x); });
+  w.append(g); return w;
+}
+function itemText(it, name){
+  if(it.who==="BUS"){ const x=TEACHERS.find(y=>y.n===name); return `${EXAM.buses[tBus(x)].n}：${it.do}`; }
+  if(it.who==="BBQ"){ const x=TEACHERS.find(y=>y.n===name); return `${it.do}（${tTables(x).map(i=>`第 ${i+1} 桌`).join("、")}）`; }
+  return it.do;
+}
+function tchChip(n){ const b=el("button","pl-who",sName(n)); b.type="button"; b.onclick=()=>{ planView="one"; planWho=n; render(); window.scrollTo({top:$("#plan").offsetTop-10}); }; return b; }
+function renderPlan(){
+  const box=$("#plan"); box.textContent="";
+  box.append(el("h2","ex-title","11/15 細流＆老師行程"));
+  box.append(el("div","ex-sub","點老師名字，就能看到他一整天要做的事。坐哪台車、烤肉負責哪桌、帶哪些器材，都會照網頁上的最新安排自動帶入。"));
+  const tabs=el("div","trip big");
+  [["all","全部細流"],["one","老師個人行程"]].forEach(([k,l])=>{ const b=el("button",null,l); b.type="button"; b.setAttribute("aria-pressed",planView===k); b.onclick=()=>{ planView=k; render(); }; tabs.append(b); });
+  box.append(tabs);
+  const pick=el("div","pl-pick"); pick.append(el("span","pl-pl","選老師："));
+  TEACHERS.forEach(x=>{ const b=tchChip(x.n); if(planView==="one"&&planWho===x.n) b.classList.add("on"); pick.append(b); });
+  box.append(pick);
+  if(planView==="one" && planWho) renderPerson(box, planWho); else renderAll(box);
+}
+function renderAll(box){
+  const tl=el("div","pl-tl");
+  PLAN.forEach(seg=>{
+    const s=el("section","pl-seg"+(seg.tbd?" tbd":"")); const h=el("div","pl-h");
+    h.append(el("span","pl-t",seg.t), el("b",null,seg.title)); s.append(h);
+    if(seg.tentative) s.append(el("div","pl-tent","⚠️ "+seg.tentative));
+    if(seg.tbd) s.append(el("div","pl-tent","🕒 "+seg.tbd));
+    if(seg.note) s.append(el("div","pl-note",seg.note));
+    seg.items.forEach(it=>{ const r=el("div","pl-row"); const wl=el("div","pl-wl");
+      const lab=whoLabel(it.who); if(lab) wl.append(el("span","pl-grp",lab));
+      if(it.who!=="ALL") whoList(it.who).forEach(n=>wl.append(tchChip(n)));
+      r.append(wl, el("div","pl-do",it.do)); s.append(r); });
+    if(seg.check){ const busy=new Set(seg.items.flatMap(it=>whoList(it.who))); const idle=TEACHERS.filter(x=>!busy.has(x.n));
+      const c=el("div","pl-idle "+(idle.length?"warn":"ok")); c.textContent = idle.length ? "⚠️ 這段沒排到工作："+idle.map(x=>sName(x.n)).join("、") : "✓ 這段每位老師都有工作"; s.append(c); }
+    tl.append(s);
+  });
+  box.append(tl);
+  const bag=el("section","pl-bag"); bag.append(el("h3",null,"🎒 每位老師包包要帶"), el("div","pl-baglist",BAG_ALL.join("、")));
+  Object.entries(BAG_EXTRA).forEach(([n,a])=>{ const r=el("div","pl-bagx"); r.append(el("b",null,sName(n)+" 另外帶："), a.join("、")); bag.append(r); });
+  box.append(bag);
+}
+
+/* ---------- 個人行程英文版（外師用）：中文 → 英文對照，沒有對照的就顯示中文 ---------- */
+const EN_DICT = {
+  /* titles */
+  "老師集合（補習班辦公室）":"Teachers meet (school office)",
+  "說明今日注意事項":"Briefing for the day",
+  "學生報到":"Student check-in",
+  "準備上車":"Get ready to board",
+  "車程（預計 10:00 到考場）":"Bus ride (arrive at the test site ~10:00)",
+  "抵達考場":"Arrive at the test site",
+  "⚠️ 考前 20 分鐘：帶小朋友上廁所":"⚠️ 20 min before the test: restroom break",
+  "考試開始・帶隊進考場（全部在明誠樓）":"Test starts – take your group to the test room (all in Mingcheng Building)",
+  "考完出來・回大廣場":"After the test – back to the main plaza",
+  "全部考完・大廣場分回 ABC 車":"All tests done – line up by Bus A / B / C in the plaza",
+  "上車・前往日月山景休閒農場（車程約 30 分鐘）":"Board the bus – to Sun Moon Mountain View Leisure Farm (~30 min)",
+  "抵達農場・按桌次入座、烤肉":"Arrive at the farm – sit by table number, BBQ",
+  "看牛看羊・大草皮集合":"Visit the cows & sheep – meet on the big lawn",
+  "活動結束・上車回補習班":"Activities end – board the bus back to school",
+  "回到補習班・發健保卡・交給家長":"Back at school – return NHI cards, hand kids to parents",
+  /* items */
+  "到補習班辦公室集合":"Meet at the school office",
+  "簡單說明、討論今日注意事項":"Short briefing and discussion of today's reminders",
+  "C1 教室（C 車學生）：收健保卡放進夾鏈袋、檢查學生攜帶物品、提醒學生把包包關好；收好的健保卡交給依庭保管":"Classroom C1 (Bus C students): collect NHI cards into a zip bag, check students' belongings, remind them to close their bags; give the cards to Tiffany to keep",
+  "08:30 提醒學生上廁所、準備上車；司機到了帶學生下樓上車":"08:30 remind students to use the restroom and get ready; when the driver arrives, take students downstairs to board",
+  "跟教室老師一起帶學生上車；上車後用網頁點名、確認人數、回報群組":"Board with the classroom teachers; after boarding, take roll on the website, confirm headcount, report in the group chat",
+  "在車上照顧學生":"Look after students on the bus",
+  "C 車：複習英檢考試內容（H2、H5、H6）":"Bus C: review the test content with students (H2, H5, H6)",
+  "大廣場集合，按級數排隊":"Meet in the main plaza, line up by test level",
+  "⚠️ 先發准考證：交給各帶隊老師，再發給自己那一隊的學生":"⚠️ Hand out admission tickets first: Jackie gives them to each group leader, leaders give them to their students",
+  "發完准考證後拍大合照":"Group photo after the tickets are handed out",
+  "10:30 開始帶自己那一隊去上廁所，上完直接帶到考場教室外排隊":"From 10:30, take your group to the restroom, then line up outside the test room",
+  "H3・明誠樓035教室：帶 H4A（11:50 結束）":"Level H3 · Room 035, Mingcheng Building: lead H4A with Jackie (ends 11:50)",
+  "📸 帶進教室時拍照記錄小朋友在考場的樣子":"📸 Take photos of the kids as they enter the test room",
+  "⚠️ 提醒小朋友離開考場要保持安靜":"⚠️ Remind kids to stay quiet when leaving the test area",
+  "📸 拍下小朋友考完出來雀躍的表情，再帶回大廣場":"📸 Take photos of the kids' happy faces coming out, then bring them back to the plaza",
+  "在大廣場等其他級數考完；可以先分批帶去上廁所":"Wait in the plaza for the other levels; take kids to the restroom in small groups",
+  "確認最後一批學生也上完廁所":"Make sure the last group has also used the restroom",
+  "在大廣場按 ABC 車排好隊，負責自己那台車的學生":"Line up by Bus A / B / C in the plaza; take charge of your bus's students",
+  "帶學生上車，上車後用網頁點名、回報群組":"Board with your students; take roll on the website and report in the group chat",
+  "⚠️ 下車前提醒小朋友：識別證上有寫桌次，例如「A11」＝A 車、烤肉第 11 桌，數字是幾就坐第幾桌":"⚠️ Before getting off, remind kids: their name tag shows their table, e.g. \"A11\" = Bus A, BBQ table 11 – sit at that table number",
+  "帶學生下車，照識別證上的桌次入座":"Get off with your students and seat them by the table number on their name tags",
+  "依照烤肉分組，負責自己的桌次":"Look after your own BBQ table(s)",
+  "先吃完的桌次，三桌三桌一組，由負責老師帶去看牛、看羊":"Tables that finish first go in groups of three tables with their teachers to see the cows and sheep",
+  "看完帶到大草皮集合，小朋友可以在那邊放風":"Afterwards bring them to the big lawn, where kids can play",
+  "⚠️ 上車前提醒小朋友先去上廁所、確認身邊的用品都有帶到":"⚠️ Before boarding, remind kids to use the restroom and check they have all their things",
+  "上車後用網頁回程點名、回報群組":"After boarding, take the return roll on the website and report in the group chat",
+  "遊覽車停在補習班上面那邊等，等意晴通知再帶小朋友下車":"The bus waits up the road from school – wait for 意晴's (Yiqing's) signal before letting kids off",
+  /* bag */
+  "衛生紙":"tissues","奇異筆":"marker","口罩":"face mask","手機（充飽電）":"phone (fully charged)","行動電源":"power bank","水":"water",
+  "防蚊液":"mosquito repellent","夾鏈袋":"zip bag","耳機（Zello）":"earphones (Zello)","H2、H5、H6 隨身講義（C 車複習用）":"H2, H5, H6 review handouts (for Bus C)",
+  /* misc */
+  "（這段沒有指定工作）":"(no task for you in this part)","⚠️ 這段沒有排工作":"⚠️ no task assigned here","吃完之後":"After eating"
+};
+const EN_BUS = {"A車":"Bus A","B車":"Bus B","C車":"Bus C","小車":"Car"};
+let planEN = {};   /* 每位老師記住中文／英文 */
+const isEN = n => (n in planEN) ? planEN[n] : n==="Renelyn";
+const tr = (zh, on) => on ? (EN_DICT[zh] || zh) : zh;
+function itemTextL(it, name, on){
+  if(!on) return itemText(it,name);
+  const x=TEACHERS.find(y=>y.n===name);
+  if(it.who==="BUS") return `${EN_BUS[EXAM.buses[tBus(x)].n]||EXAM.buses[tBus(x)].n}: ${tr(it.do,1)}`;
+  if(it.who==="BBQ") return `${tr(it.do,1)} (table ${tTables(x).map(i=>i+1).join(", ")})`;
+  return tr(it.do,1);
+}
+function renderPerson(box, name){
+  const x=TEACHERS.find(y=>y.n===name); const card=el("section","pl-me");
+  const E=isEN(name);
+  const h=el("div","pl-me-h"); h.append(el("b",null,E?`${name==="Renelyn"?"Teacher Lyn":sName(name)}'s Day – Sun 11/15`:sName(name)+" 老師的 11/15"));
+  const lg=el("button","btn ghost sm pl-lang",E?"中文":"English"); lg.type="button"; lg.onclick=()=>{ planEN[name]=!E; render(); }; h.append(lg);
+  card.append(h);
+  const info=el("div","pl-info");
+  const bi=tBus(x), tb=tTables(x);
+  const mine=eqItems().filter(it=>it.owner && (it.owner.includes(sName(name))||it.owner.includes(name)));
+  (E?[["Bus",EN_BUS[EXAM.buses[bi].n]||EXAM.buses[bi].n],["BBQ table",tb.length?tb.map(i=>`Table ${i+1}`).join(", "):"(not yet)"],["Equipment",mine.length?mine.map(it=>it.name+(it.qty?" × "+it.qty:"")).join("、"):"(none)"]]
+     :[["搭車",EXAM.buses[bi].n],["烤肉負責",tb.length?tb.map(i=>`第 ${i+1} 桌`).join("、"):"（還沒排）"],["負責器材",mine.length?mine.map(it=>it.name+(it.qty?" × "+it.qty:"")).join("、"):"（沒有）"]]).forEach(([k,v])=>{ const r=el("div"); r.append(el("i",null,k), el("strong",null,v)); info.append(r); });
+  card.append(info);
+  const ex=BAG_EXTRA[name]||[]; const bag=el("div","pl-mybag"); bag.append(el("i",null,E?"🎒 Bring":"🎒 包包"), el("span",null,[...BAG_ALL,...ex.filter(e=>!BAG_ALL.includes(e))].map(b=>tr(b,E)).join(E?", ":"、")));
+  card.append(bag);
+  if(ex.some(e=>e.includes("⚠️"))) card.append(el("div","pl-warn",ex.filter(e=>e.includes("⚠️")).map(b=>tr(b,E)).join("、")));
+  const tl=el("div","pl-mytl");
+  PLAN.forEach(seg=>{
+    const mineItems=seg.items.filter(it=>whoList(it.who).includes(name));
+    const r=el("div","pl-my"+(mineItems.length?"":" none")+(seg.tbd?" tbd":""));
+    r.append(el("span","pl-t",tr(seg.t,E)));
+    const body=el("div"); body.append(el("b",null,tr(seg.title,E)));
+    if(mineItems.length) mineItems.forEach(it=>{ body.append(el("div","pl-do","・"+itemTextL(it,name,E))); if(it.team) body.append(teamBox(it.team,E)); });
+    else body.append(el("div","pl-do "+(seg.check?"warn":""),tr(seg.check?"⚠️ 這段沒有排工作":"（這段沒有指定工作）",E)));
+    if(seg.tentative) body.append(el("div","pl-tent small","⚠️ "+seg.tentative));
+    if(seg.tbd) body.append(el("div","pl-tent small","🕒 "+seg.tbd));
+    r.append(body); tl.append(r);
+  });
+  card.append(tl);
+  (PERSON_NOTES[name]||[]).forEach(n=>{ const w=el("div","pl-note"); w.append(el("b",null,n.title)); const t=el("div","pl-note-t",n.text); w.append(t);
+    const b=el("button","btn sm","複製訊息"); b.type="button"; b.onclick=()=>eqCopy(b,n.text,"複製訊息"); w.append(b); card.append(w); });
+  const cpLab=E?"Copy my schedule":"複製我的行程";
+  const cp=el("button","btn ghost sm",cpLab); cp.type="button";
+  cp.onclick=E?()=>{ const L=[`Teacher ${name==="Renelyn"?"Lyn":name} – Sun 11/15`,`Bus: ${EN_BUS[EXAM.buses[bi].n]||EXAM.buses[bi].n} | BBQ: ${tb.length?tb.map(i=>`Table ${i+1}`).join(", "):"—"}`];
+    PLAN.forEach(seg=>{ const m=seg.items.filter(it=>whoList(it.who).includes(name)); if(m.length) L.push(`${tr(seg.t,1)} ${tr(seg.title,1)}: ${m.map(it=>itemTextL(it,name,1)).join("; ")}`); });
+    L.push(`Bring: ${[...BAG_ALL,...ex].map(b=>tr(b,1)).join(", ")}`); eqCopy(cp, L.join("\n"), cpLab); }
+  :()=>{ const L=[`${sName(name)} 老師 11/15 行程`,`搭車：${EXAM.buses[bi].n}｜烤肉：${tb.length?tb.map(i=>`第 ${i+1} 桌`).join("、"):"—"}`];
+    PLAN.forEach(seg=>{ const m=seg.items.filter(it=>whoList(it.who).includes(name)); if(m.length) L.push(`${seg.t} ${seg.title}：${m.map(it=>itemText(it,name)).join("；")}`); });
+    L.push(`包包：${[...BAG_ALL,...ex].join("、")}`); eqCopy(cp, L.join("\n"), "複製我的行程"); };
+  card.append(cp);
+  box.append(card);
+}
+
+/* ---------- 搜尋小朋友 ---------- */
+let findHi=null;
+function busOfKid(s){ if(EXAM.out[s.id]) return {txt:EXAM.out[s.id].replace(/[（）()]/g,""),i:-1}; const i=EXAM.buses.findIndex(b=>b.cls.includes(s.c)); return {txt:i>=0?EXAM.buses[i].n:"—",i}; }
+function rollTxt(key){ const x=exState(key), out=[];
+  [["go","去程"],["back","回程"],["card","健保卡"]].forEach(([T,lab])=>{ if(T==="card" && !stu[key]) return; const st=stOf(key,T); out.push(lab+"："+(st==="leave"?"請假":st==="self"?ST_LABEL.self[T]:x[T]?TRIP[T].on+" ✓":TRIP[T].miss)); });
+  return out.join("　"); }
+function renderFind(){
+  const box=$("#findRes"); if(!box) return; box.textContent="";
+  const q=($("#findQ").value||"").trim().toLowerCase(); if(!q) return;
+  const kids=bbqAll().filter(s=>s.zh.includes(q)||(s.en||"").toLowerCase().includes(q)).slice(0,8);
+  const tchs=TEACHERS.filter(x=>x.n.toLowerCase().includes(q)).slice(0,4);
+  if(!kids.length && !tchs.length){ box.append(el("div","find-none","找不到「"+q+"」")); return; }
+  kids.forEach(s=>{
+    const c=el("div","find-card"), bus=busOfKid(s), tb=bbqTable(s.id);
+    const h=el("div","find-h"); h.append(el("b",null,s.zh), el("span",null,`${s.en||""}・${s.c}（考 ${EXAM.level[s.c]||"—"}）`));
+    const g=el("div","find-g");
+    const r1=el("div"); r1.append(el("i",null,"英檢搭車"), el("strong",null,bus.txt)); g.append(r1);
+    if(bus.i>=0){ const r2=el("div"); r2.append(el("i",null,"今日點名"), el("span",null,rollTxt(s.id))); g.append(r2); }
+    const tk=TICKETS[s.id]; if(tk){ const r0=el("div"); r0.append(el("i",null,"准考證"), el("strong",null,`${tk.no}｜${tk.room}`)); g.append(r0); }
+    const r3=el("div"); r3.append(el("i",null,"烤肉"), el("strong",null,tbName(tb)+(tb>=0&&tableTeacher(tb)?`（負責：${tableTeacher(tb)}）`:""))); g.append(r3);
+    const acts=el("div","find-a");
+    if(bus.i>=0){ const a=el("button","btn ghost sm","看分車"); a.type="button"; a.onclick=()=>{ examBus=bus.i; findHi=null; setMode("exam"); }; acts.append(a); }
+    const b2=el("button","btn ghost sm","看烤肉"); b2.type="button"; b2.onclick=()=>{ findHi=s.id; setMode("bbq"); setTimeout(()=>{ const e=document.querySelector(`.bk[data-id="${s.id}"]`); if(e) e.scrollIntoView({block:"center",behavior:"smooth"}); },80); setTimeout(()=>{findHi=null;},4000); }; acts.append(b2);
+    c.append(h,g,acts); box.append(c);
+  });
+  tchs.forEach(x=>{
+    const c=el("div","find-card tch"); const bi=tBus(x), tbs=[...Array(BBQ_N).keys()].filter(i=>tableTeacher(i).includes(x.n));
+    const h=el("div","find-h"); h.append(el("b",null,x.n), el("span",null,"老師"));
+    const g=el("div","find-g");
+    const r1=el("div"); r1.append(el("i",null,"英檢搭車"), el("strong",null,EXAM.buses[bi].n)); g.append(r1);
+    const r2=el("div"); r2.append(el("i",null,"今日點名"), el("span",null,rollTxt(x.k))); g.append(r2);
+    const r3=el("div"); r3.append(el("i",null,"烤肉負責"), el("strong",null,tbs.length?tbs.map(i=>`第 ${i+1} 桌`).join("、"):"（還沒排）")); g.append(r3);
+    const a=el("button","btn ghost sm","看行程"); a.type="button"; a.onclick=()=>{ planView="one"; planWho=x.n; setMode("plan"); };
+    const acts=el("div","find-a"); acts.append(a);
+    c.append(h,g,acts); box.append(c);
+  });
+}
+$("#findQ").addEventListener("input",renderFind);
+
+/* 拖拉（滑鼠）＋點選（觸控） */
+(function(){
+  let drag=null;
+  document.addEventListener("pointerdown",e=>{
+    const k=e.target.closest && e.target.closest(".bk"); if(!k || k.disabled || !bbqMode) return;
+    if(e.pointerType!=="mouse") return;
+    drag={id:k.dataset.id, x:e.clientX, y:e.clientY, el:k, ghost:null};
+  });
+  document.addEventListener("pointermove",e=>{
+    if(!drag) return;
+    if(!drag.ghost){ if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6) return;
+      drag.ghost=drag.el.cloneNode(true); drag.ghost.classList.add("ghost"); document.body.append(drag.ghost); drag.el.classList.add("dragging"); }
+    drag.ghost.style.left=(e.clientX+8)+"px"; drag.ghost.style.top=(e.clientY+8)+"px";
+    document.querySelectorAll(".bbq-table.drop,.bk.drop").forEach(x=>x.classList.remove("drop"));
+    const t=document.elementFromPoint(e.clientX,e.clientY); const kk=t&&t.closest(".bk"); const tb=t&&t.closest(".bbq-table");
+    if(kk && kk.dataset.id!==drag.id) kk.classList.add("drop"); else if(tb) tb.classList.add("drop");
+  });
+  document.addEventListener("pointerup",e=>{
+    if(!drag) return; const d=drag; drag=null;
+    document.querySelectorAll(".drop").forEach(x=>x.classList.remove("drop"));
+    if(!d.ghost) return;  // 沒有拖動＝當作點選，交給 click
+    d.ghost.remove(); d.el.classList.remove("dragging"); d.el.dataset.dragged="1";
+    const t=document.elementFromPoint(e.clientX,e.clientY); const kk=t&&t.closest(".bk"); const tb=t&&t.closest(".bbq-table");
+    bbqSel=null;
+    if(isTid(d.id)){ const dest = kk && kk.dataset.id!==d.id ? selTable(kk.dataset.id) : (tb ? +tb.dataset.tb : null);
+      if(dest!==null) bbqTMove(d.id,dest); else render(); return; }
+    if(kk && isTid(kk.dataset.id)){ const tt=selTable(kk.dataset.id); if(tt>=0) bbqMove(d.id,tt); else render(); return; }
+    if(kk && kk.dataset.id!==d.id) bbqSwap(d.id,kk.dataset.id);
+    else if(tb && +tb.dataset.tb!==-9) bbqMove(d.id,+tb.dataset.tb);
+    else render();
+  });
+  document.addEventListener("click",e=>{
+    const xx=e.target.closest && e.target.closest(".tx");
+    if(xx && bbqMode){ const k=xx.closest(".bk"); if(k && !k.disabled){ bbqSel=null; bbqTMove(k.dataset.id,-9); } return; }
+    const k=e.target.closest && e.target.closest(".bk"); if(!k || !bbqMode || k.disabled) return;
+    if(k.dataset.dragged){ delete k.dataset.dragged; return; }
+    const id=k.dataset.id;
+    if(!bbqSel){ bbqSel=id; render(); return; }
+    if(bbqSel===id){ bbqSel=null; render(); return; }
+    const a=bbqSel; bbqSel=null;
+    if(isTid(a)){ const d=selTable(id); if(d>=0||d===-9) bbqTMove(a, d); }
+    else if(isTid(id)){ const tt=selTable(id); if(tt>=0) bbqMove(a,tt); }
+    else bbqSwap(a,id);
+    render();
+  });
+})();
+
+/* ---------- 器材清單（可新增、刪除、備註；出發／回收各自打勾） ---------- */
+const EQ_DEFAULT = [
+  ["音響","3 顆",""],["Mipro","2 組",""],["延長線","",""],["防蚊液","",""],["黑白地板電風扇","",""],
+  ["草皮","",""],["藍芽耳機","每位老師 1 個","老師自己準備"],["衛生紙","",""],["醫藥包","",""],["礦泉水","",""]
+];
+let eqMode=false, eqView="go", eqArm=null;
+function eqItems(){
+  const m={};
+  EQ_DEFAULT.forEach(([name,qty,note],i)=>{ const id="eq_d"+String(i+1).padStart(2,"0"); m[id]={id,name,qty,note,owner:"",order:i+1}; });
+  Object.keys(state).filter(k=>k.startsWith("eq_")).forEach(k=>{ m[k]={...(m[k]||{id:k,order:9999}),...state[k],id:k}; });
+  return Object.values(m).filter(x=>!x.del).sort((a,b)=>(a.order||0)-(b.order||0));
+}
+function eqInput(it,field,ph,cls){
+  const i=document.createElement("input"); i.className="note eq-in "+(cls||""); i.placeholder=ph; i.value=it[field]||""; i.maxLength=60;
+  i.dataset.id=it.id+"__"+field; i.id="note-"+i.dataset.id; i.disabled=!canWrite; i.setAttribute("aria-label",ph);
+  i.addEventListener("change",()=>save(it.id,{[field]:i.value.trim(), name:field==="name"?i.value.trim():(it.name||""), order:it.order}));
+  return i;
+}
+const EQ_ZONES=[{k:"main",n:"共用器材",en:"Shared Equipment"},{k:"tsai",n:"蔡老師的器材專區",en:"Mr. Tsai's Equipment"}];
+const eqZone = it => it.zone || "main";
+function eqCopy(btn, txt, label){ (async()=>{ try{ await navigator.clipboard.writeText(txt); btn.textContent="已複製 ✓"; }catch(_){ const ta=document.createElement("textarea"); ta.value=txt; document.body.append(ta); ta.select(); try{document.execCommand("copy"); btn.textContent="已複製 ✓";}catch(__){} ta.remove(); } setTimeout(()=>btn.textContent=label,1800); })(); }
+function renderEq(){
+  const box=$("#eq"); box.textContent="";
+  const items=eqItems(), done=items.filter(x=>x[eqView]).length;
+  box.append(el("h2","ex-title","器材清單"));
+  box.append(el("div","ex-sub","出發前清點「出發已帶」，結束後清點「回收」。名稱、數量、負責人、備註都可以直接改。"));
+  const trip=el("div","trip big");
+  [["go","出發清點"],["back","回收清點"]].forEach(([k,lab])=>{ const x=el("button",null,lab); x.type="button"; x.setAttribute("aria-pressed",eqView===k); x.onclick=()=>{eqView=k; render();}; trip.append(x); });
+  box.append(trip);
+  /* 全部總覽 */
+  const bar=el("div","eq-bar");
+  const pct=items.length?Math.round(done/items.length*100):0;
+  const prog=el("div","eq-prog"); const fill=el("span"); fill.style.width=pct+"%"; prog.append(fill);
+  bar.append(el("b",null,`全部${eqView==="go"?"出發已帶":"已回收"} ${done} / ${items.length} 項`), prog);
+  const zs=el("div","eq-zsum");
+  EQ_ZONES.forEach(z=>{ const zi=items.filter(x=>eqZone(x)===z.k), zd=zi.filter(x=>x[eqView]).length;
+    const c=el("span","eq-zchip"+(zi.length&&zd===zi.length?" ok":"")); c.append(el("b",null,z.n), ` ${zd} / ${zi.length}`); zs.append(c); });
+  bar.append(zs);
+  const miss=items.filter(x=>!x[eqView]);
+  if(miss.length && miss.length<items.length) bar.append(el("div","eq-miss","還沒"+(eqView==="go"?"帶":"收")+"："+miss.map(x=>x.name||"（未命名）").join("、")));
+  if(!miss.length && items.length) bar.append(el("div","eq-ok",eqView==="go"?"全部都帶了！":"全部都收回了！"));
+  const cp=el("button","btn ghost sm","複製清單"); cp.type="button";
+  cp.onclick=()=>{ const lines=["器材清單（"+(eqView==="go"?"出發":"回收")+" "+done+"/"+items.length+"）"];
+    EQ_ZONES.forEach(z=>{ const zi=items.filter(x=>eqZone(x)===z.k); if(!zi.length) return; lines.push(`【${z.n}】`);
+      zi.forEach((x,i)=>lines.push(`${x[eqView]?"✅":"⬜"} ${i+1}. ${x.name}${x.qty?" × "+x.qty:""}${x.owner?"｜"+x.owner:""}${x.note?"（"+x.note+"）":""}`)); });
+    eqCopy(cp, lines.join("\n"), "複製清單"); };
+  bar.append(cp); box.append(bar);
+  /* 各區 */
+  EQ_ZONES.forEach(z=>{
+    const zi=items.filter(x=>eqZone(x)===z.k), zd=zi.filter(x=>x[eqView]).length;
+    const sec=el("section","eq-zone z-"+z.k);
+    const zh=el("div","eq-zhead"); zh.append(el("h3",null,z.n), el("span","eq-zcnt",`${eqView==="go"?"已帶":"已收"} ${zd} / ${zi.length}`)); sec.append(zh);
+    const list=el("div","eq-list");
+    const hd=el("div","eq-row eq-hd"); ["","項目","數量","負責人","備註",""].forEach(x=>hd.append(el("span",null,x))); list.append(hd);
+    if(!zi.length) list.append(el("div","eq-empty","還沒有器材，請在下面新增。"));
+    zi.forEach((it,i)=>{
+      const row=el("div","eq-row"+(it[eqView]?" done":""));
+      const ck=el("button","eq-ck"+(it[eqView]?" on":"")); ck.type="button"; ck.disabled=!canWrite;
+      ck.append(el("span","eqn",String(i+1)), el("span","eqt",it[eqView]?(eqView==="go"?"已帶":"已收"):(eqView==="go"?"帶了嗎":"收了嗎")));
+      ck.setAttribute("aria-pressed",!!it[eqView]); ck.setAttribute("aria-label",`${it.name} ${eqView==="go"?"出發已帶":"已回收"}`);
+      ck.onclick=()=>save(it.id,{[eqView]:!it[eqView], name:it.name||"", order:it.order});
+      const del=el("button","eq-del",eqArm===it.id?"確定刪除？":"刪除"); del.type="button"; del.disabled=!canWrite;
+      del.onclick=()=>{ if(eqArm!==it.id){ eqArm=it.id; render(); setTimeout(()=>{ if(eqArm===it.id){eqArm=null; render();} },3000); return; } eqArm=null; save(it.id,{del:true}); };
+      row.append(ck, eqInput(it,"name","項目名稱","nm"), eqInput(it,"qty","數量","qt"), eqInput(it,"owner","誰負責帶","ow"), eqInput(it,"note","備註","nt"), del);
+      list.append(row);
+    });
+    sec.append(list);
+    const add=el("div","eq-add"); add.append(el("b",null,"新增到「"+z.n+"」"));
+    const mk=(ph,id)=>{ const i=document.createElement("input"); i.className="note"; i.placeholder=ph; i.id=id+"_"+z.k; return i; };
+    const nm=mk("項目名稱（例：烤肉夾）","eqNewName"), qt=mk("數量","eqNewQty"), ow=mk("誰負責帶","eqNewOwner"), nt=mk("備註","eqNewNote");
+    if(z.k==="tsai") ow.value="蔡老師";
+    const go=el("button","btn","＋ 新增"); go.type="button"; go.disabled=!canWrite;
+    const doAdd=()=>{ const n=nm.value.trim(); if(!n){ nm.focus(); return; } const id="eq_n"+Date.now();
+      save(id,{name:n,qty:qt.value.trim(),owner:ow.value.trim(),note:nt.value.trim(),zone:z.k,order:Date.now()}); };
+    go.onclick=doAdd; [nm,qt,ow,nt].forEach(x=>x.addEventListener("keydown",e=>{ if(e.key==="Enter") doAdd(); }));
+    const f=el("div","eq-add-f"); f.append(nm,qt,ow,nt,go); add.append(f); sec.append(add);
+    box.append(sec);
+  });
+  box.append(el("div","ex-note","打勾和修改都會即時同步，每位老師看到的都一樣。"));
+}
+
+setTimeout(()=>setMode({"#mock":"mock","#bbq":"bbq","#eq":"eq","#log":"log","#plan":"plan"}[location.hash]||"exam"),0);
+
+/* ---------- 操作紀錄 ---------- */
+const LOGS = {};
+const TEACHER_NAMES = {
+  "choilai6829@gmail.com":"Maggie", "keek34578@gmail.com":"意晴", "ahk091091@gmail.com":"育惠",
+  "kikic1115@gmail.com":"Kiki 老師", "cyc0903cyc@gmail.com":"蔡老師", "jackiekniph@gmail.com":"Jackie",
+  "tiffany1235798@gmail.com":"依庭", "asd0939512285@gmail.com":"邱老師", "ran305452@gmail.com":"Vicky",
+  "renelynlamosao17@gmail.com":"Renelyn", "cd2233sa@gmail.com":"茄茂", "buigogo222@gmail.com":"Cherry", "a0987647796@gmail.com":"珈銘", "melody661188@gmail.com":"采希"
+};
+const tName = email => TEACHER_NAMES[(email||"").toLowerCase()] || (email||"").replace(/@.*/,"");
+let logMode=false, logWho="", logType="", logQ="";
+function exName(key){
+  if(stu[key]) return `${stu[key].c} ${stu[key].zh}`;
+  const tt=TEACHERS.find(x=>x.k===key); if(tt) return `${tt.n} 老師`;
+  return key;
+}
+function eqName(id){ const it=eqItems().find(x=>x.id===id) || S(id); return it.name || "（未命名器材）"; }
+function describe(id, patch0, prev){
+  const parts=[]; const q=v=>v?`「${v}」`:"（清空）";
+  const patch=Object.fromEntries(Object.entries(patch0).filter(([k,v])=>k==="order"||k==="name"||(v===0?0:(v||""))!==(prev[k]===0?0:(prev[k]||""))));
+  if(!Object.keys(patch).filter(k=>k!=="order"&&k!=="name").length && !(id.startsWith("eq_")&&patch0.order&&!prev.name&&!id.startsWith("eq_d"))) return null;
+  if(id.startsWith(EXAM.key)){
+    const key=id.slice(EXAM.key.length);
+    if(key.startsWith("tb2_")){ const tt=TEACHERS.find(x=>x.k===key.slice(4)); const from=EXAM.buses[Number.isInteger(prev.bus)?prev.bus:(tt?tt.def:0)], to=EXAM.buses[patch.bus];
+      return {type:"分車", text:`${tt?tt.n:key} 老師：從 ${from?from.n:"?"} 換到 ${to?to.n:"?"}`}; }
+    const who=exName(key);
+    for(const [k,v] of Object.entries(patch)){
+      if(k==="go"||k==="back"){ if(!("goSt" in patch)&&!("backSt" in patch) || v) parts.push(`${k==="go"?"去程":"回程"}${v?"已上車":"取消上車"}`); }
+      else if(k==="card"){ if(!("cardSt" in patch) || v) parts.push(v?"健保卡已收":"健保卡取消已收"); }
+      else if(k==="cardSt"){ parts.push(v==="leave"?"健保卡標記請假":v==="self"?"健保卡忘記帶":"健保卡取消標記"); }
+      else if(k==="goSt"||k==="backSt"){ const T=k==="goSt"?"去程":"回程"; parts.push(v==="leave"?`${T}標記請假`:v==="self"?`${T}標記${k==="goSt"?"自行前往":"自行回家"}`:`${T}取消${prev[k]==="leave"?"請假":"自行"}標記`); }
+      else if(k==="why") parts.push(`原因改為${q(v)}`);
+    }
+    return {type:"點名", text:`${who}：${[...new Set(parts)].join("、")}`};
+  }
+  if(id.startsWith("bbq_")){ const s=stu[id.slice(4)]; return {type:"烤肉", text:`${s?s.c+" "+s.zh:id} 移到${tbName(patch.tb??0)}`}; }
+  if(id.startsWith("bbqT_")){ const x=TEACHERS.find(y=>y.k===id.slice(5)); const nw=(patch.tbs||"").split(",").filter(Boolean).map(Number), old=x?tTables(x):[];
+    const add=nw.filter(n=>!old.includes(n)), del=old.filter(n=>!nw.includes(n)), p=[];
+    if(add.length) p.push("負責 "+add.map(n=>`第 ${n+1} 桌`).join("、")); if(del.length) p.push("取消 "+del.map(n=>`第 ${n+1} 桌`).join("、"));
+    return p.length ? {type:"烤肉", text:`${x?x.n:id} 老師：${p.join("；")}`} : null; }
+  if(id.startsWith("bbqt_")){ return {type:"烤肉", text:`第 ${+id.slice(5)+1} 桌負責老師改為${q(patch.t)}`}; }
+  if(id.startsWith("eq_")){
+    const nm=patch.name||eqName(id);
+    if(patch.del) return {type:"器材", text:`刪除器材「${nm}」`};
+    if(!prev.name && !id.startsWith("eq_d") && patch.order) return {type:"器材", text:`新增器材「${nm}」${patch.qty?" × "+patch.qty:""}`};
+    for(const [k,v] of Object.entries(patch)){
+      if(k==="go") parts.push(v?"出發已帶":"取消出發已帶");
+      else if(k==="back") parts.push(v?"已回收":"取消已回收");
+      else if(k==="qty"&&v!==(prev.qty||"")) parts.push(`數量改為${q(v)}`);
+      else if(k==="owner"&&v!==(prev.owner||"")) parts.push(`負責人改為${q(v)}`);
+      else if(k==="note"&&v!==(prev.note||"")) parts.push(`備註改為${q(v)}`);
+      else if(k==="name"&&prev.name&&v!==prev.name) parts.push(`名稱改為${q(v)}（原本「${prev.name}」）`);
+    }
+    return parts.length ? {type:"器材", text:`器材「${nm}」：${parts.join("、")}`} : null;
+  }
+  if(stu[id]){
+    const s=stu[id];
+    for(const [k,v] of Object.entries(patch)){
+      if(k==="go") parts.push(v?"搭來 ✓":"取消搭來"); else if(k==="back") parts.push(v?"搭回 ✓":"取消搭回");
+      else if(k==="par") parts.push(v?"家長接送 ✓":"取消家長接送"); else if(k==="skip") parts.push(v?"不考試":"取消不考試");
+      else if(k==="leave") parts.push(v?`請假${patch.reason?"（"+patch.reason+"）":""}`:"取消請假");
+      else if(k==="note") parts.push(`備註改為${q(v)}`);
+    }
+    return parts.length ? {type:"模擬考", text:`${s.c} ${s.zh}：${parts.join("、")}`} : null;
+  }
+  return null;
+}
+function logRows(){
+  return Object.entries(LOGS).map(([id,x])=>({id,...x,t:x.t||0})).sort((a,b)=>b.t-a.t);
+}
+const fmtT = t => { const d=new Date(t), p=n=>String(n).padStart(2,"0"); return `${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+function renderLog(){
+  const box=$("#log"); box.textContent="";
+  box.append(el("h2","ex-title","操作紀錄"));
+  box.append(el("div","ex-sub","每位老師的每一次點選、修改都會留下一筆，不會被蓋掉。最新的在最上面。"));
+  const all=logRows();
+  const f=el("div","log-f");
+  const sw=document.createElement("select"); sw.id="logWho"; sw.className="note";
+  [["","全部老師 All teachers"],...[...new Set(all.map(r=>r.who||""))].filter(Boolean).sort().map(w=>[w,tName(w)])].forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=l; sw.append(o); });
+  sw.value=logWho; sw.onchange=()=>{logWho=sw.value; render();};
+  const st=document.createElement("select"); st.id="logType"; st.className="note";
+  [["","全部類別 All types"],["點名","11/15 點名 Roll call"],["分車","老師換車 Bus change"],["烤肉","烤肉分組 BBQ"],["器材","器材清單 Equipment"],["模擬考","11/7 模擬考 Mock exam"]].forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=l; st.append(o); });
+  st.value=logType; st.onchange=()=>{logType=st.value; render();};
+  const sq=document.createElement("input"); sq.className="note"; sq.id="note-logQ"; sq.dataset.id="logQ"; sq.placeholder="搜尋學生或器材名字"; sq.value=logQ;
+  sq.addEventListener("input",()=>{ logQ=sq.value.trim(); clearTimeout(sq._t); sq._t=setTimeout(render,250); });
+  const dl=el("button","btn sm","下載紀錄"); dl.type="button";
+  f.append(sw,st,sq,dl); box.append(f);
+  const rows=all.filter(r=>(!logWho||r.who===logWho)&&(!logType||r.type===logType)&&(!logQ||(r.text||"").includes(logQ)));
+  dl.onclick=()=>{ const out=[["時間","老師","類別","操作內容"]]; rows.forEach(r=>out.push([fmtT(r.t),tName(r.who),r.type||"",r.text||""])); dlCsv(out,"操作紀錄.csv"); };
+  box.append(el("div","log-count",`共 ${rows.length} 筆${rows.length!==all.length?`（全部 ${all.length} 筆）`:""}`));
+  const list=el("div","log-list");
+  if(!rows.length) list.append(el("p","empty","目前還沒有紀錄。之後每次操作都會出現在這裡。"));
+  rows.slice(0,500).forEach(r=>{
+    const row=el("div","log-row");
+    row.append(el("span","log-t",fmtT(r.t)), el("span","log-type lt-"+(r.type||""),r.type||""), el("span","log-who",tName(r.who)), el("span","log-x",r.text||""));
+    row.title=r.who||""; list.append(row);
+  });
+  if(rows.length>500) list.append(el("p","empty",`只顯示最新 500 筆，其餘請按「下載紀錄」。`));
+  box.append(list);
+}
+function writeLog(id,patch,prev){
+  let d=null; try{ d=describe(id,patch,prev); }catch(_){}
+  if(!d || !d.text) return null;
+  const lid="log_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
+  return {lid, body:{t:Date.now(), type:d.type, text:d.text, ref:id}};
+}
+
+/* ---------- 儲存 ---------- */
+function setStatus(t){ $("#status").textContent=t; }
+async function save(id,patch){
+  if(isViewer()) return;
+  const prev={...S(id)}; const lg=writeLog(id,patch,prev);
+  state[id]={...S(id),...patch}; render(); scheduleResort(2000);
+  const who=(auth&&auth.currentUser&&auth.currentUser.email)||"";
+  if(lg){ LOGS[lg.lid]={...lg.body,who}; }
+  if(!fs) return;
+  try{
+    await fs.collection(COL).doc(id).set({...patch, at:firebase.firestore.FieldValue.serverTimestamp(), by:who},{merge:true});
+    if(lg) await fs.collection(COL).doc(lg.lid).set({...lg.body, who, at:firebase.firestore.FieldValue.serverTimestamp()});
+  }catch(e){
+    setStatus(e.code==="permission-denied" ? "沒有修改權限（請確認資料庫規則）" : "儲存失敗，請檢查網路");
+  }
+}
+
+/* ---------- 下載 ---------- */
+$("#exportBtn").onclick=()=>{
+  const f=v=>v?"✓":"";
+  const rows=[["班級","姓名","英文名","搭來","搭回","家長接送","請假","請假原因","備註"]];
+  ROSTER.forEach(c=>c.st.forEach(s=>{const x=S(s.id); rows.push([c.c,s.zh,s.en,f(x.go),f(x.back),f(x.par),f(x.leave),x.reason||"",x.note||""]);}));
+  rows.push([]); rows.push(["班級","人數","搭來","搭回","家長接送","請假","未填"]);
+  ROSTER.forEach(c=>{const s=stat(c); rows.push([c.c,s.n,s.go,s.back,s.par,s.leave,s.blank]);});
+  for(const k of ["go","back","par","leave"]){
+    const cfg=SHEET[k]; rows.push([]); rows.push([cfg.t+"名單","姓名","英文名","說明"]);
+    ROSTER.forEach(c=>c.st.forEach(s=>{const x=S(s.id); if(cfg.pick(x)) rows.push([c.c,s.zh,s.en,cfg.tag?cfg.tag(x):(x.note||"")]);}));
+  }
+  const ng={}; ROSTER.forEach(c=>c.st.forEach(s=>{const n=S(s.id).note; if(n)(ng[n]=ng[n]||[]).push(c.c+" "+s.zh);}));
+  rows.push([]); rows.push(["備註統計","人數","名單"]); Object.keys(ng).forEach(k=>rows.push([k,ng[k].length,ng[k].join("、")]));
+  dlCsv(rows,"11-7模擬考搭車統計.csv");
+};
+function dlCsv(rows,name){
+  const csv="﻿"+rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* ---------- 按鈕中英對照 ---------- */
+const EN = {
+  "11/15 英檢正式考試 分車名單":"11/15 Exam Bus List","烤肉分組":"BBQ Groups","器材清單":"Equipment List","操作紀錄":"Activity Log","11/7 模擬考 搭車統計":"11/7 Mock Exam Bus",
+  "用 Google 登入":"Sign in with Google","登出":"Sign out",
+  "去程點名":"Departure Roll Call","回程點名":"Return Roll Call","複製點名回報":"Copy Report",
+  "✓ 上車點名":"Boarding","請假":"On Leave","自行前往":"Going on Own","自行回家":"Going Home on Own",
+  "A車":"Bus A","B車":"Bus B","C車":"Bus C","小車":"Van",
+  "複製分組文字":"Copy Groups","下載分組名單":"Download Groups","移到這桌":"Move to This Table",
+  "出發清點":"Departure Check","回收清點":"Return Check","複製清單":"Copy List","＋ 新增":"+ Add",
+  "刪除":"Delete","確定刪除？":"Confirm?","帶了嗎":"Packed?","已帶":"Packed","收了嗎":"Returned?","已收":"Returned",
+  "下載紀錄":"Download Log","已複製 ✓":"Copied ✓",
+  "搭來":"Bus There","搭回":"Bus Back","家長接送":"Parent Pickup","尚未填":"Not Filled","備註":"Notes","全部":"All",
+  "複製文字":"Copy Text","下載這份名單":"Download List","關閉":"Close","下載統計（Excel 可開）":"Download Stats (Excel)",
+  "收起":"Close","確定請假":"Confirm Leave","更新原因":"Update Reason","取消請假":"Cancel Leave",
+  "病假":"Sick","細流＆老師行程":"Schedule","全部細流":"Full Schedule","老師個人行程":"Teacher View","複製我的行程":"Copy My Schedule","看行程":"View Schedule","健保卡":"Health Card","✓ 收到健保卡":"Card Received","忘記帶":"Forgot Card","加到這桌":"Add to Table","複製人數回報":"Copy Headcount","看分車":"View Bus","看烤肉":"View BBQ","移到這裡":"Move Here","登入":"Sign In","第一次使用：建立帳號":"First time: Create account","忘記密碼":"Forgot password","我已經驗證了":"I've verified","重寄驗證信":"Resend email","換帳號":"Switch account","老師換車":"Move Teachers","完成換車":"Done","複製網址":"Copy Link","事假":"Personal","出國":"Abroad","家裡有事":"Family Matter"
+};
+function biLabel(){
+  document.querySelectorAll("button").forEach(b=>{
+    if(b.querySelector(".en-sub")) return;
+    const own=b.childElementCount===0 ? b : null;
+    const cands=own ? [b] : [...b.querySelectorAll("span,b")];
+    for(const c of cands){
+      const key=(c.childElementCount===0 ? c.textContent : "").trim();
+      if(key && EN[key]){ c.append(el("span","en-sub",EN[key])); break; }
+    }
+  });
+}
+let biQueued=false;
+new MutationObserver(()=>{ if(biQueued) return; biQueued=true; requestAnimationFrame(()=>{ biQueued=false; biLabel(); }); }).observe(document.body,{childList:true,subtree:true,characterData:true});
+biLabel();
+
+/* ---------- 登入與同步 ---------- */
+function start(){
+  $("#gate").hidden=true; $("#app").hidden=false; canWrite=!isViewer(); render();
+  if(unsub) unsub();
+  const timer=setTimeout(()=>setStatus("連不上資料庫，請檢查網路"),10000);
+  let firstSnap=true;
+  unsub=fs.collection(COL).onSnapshot(snap=>{
+    clearTimeout(timer);
+    snap.docChanges().forEach(ch=>{ const id=ch.doc.id, M=id.startsWith("log_")?LOGS:state; if(ch.type==="removed") delete M[id]; else M[id]=ch.doc.data(); });
+    setStatus(snap.metadata.hasPendingWrites?"儲存中…":"已同步 · 即時更新");
+    if(firstSnap){ firstSnap=false; ORDER={}; ORDER_FILLED={}; } else scheduleResort(2000);
+    render();
+  }, err=>{ clearTimeout(timer);
+    if(err.code==="permission-denied"){ setStatus("沒有讀取權限"); $("#app").hidden=true; $("#gate").hidden=false;
+      $("#gateMsg").textContent="這個帳號還沒有權限。請確認 Firebase 資料庫規則已加入這個 Email："+((auth.currentUser&&auth.currentUser.email)||""); }
+    else setStatus("同步中斷，請重新整理"); });
+}
+if(window.firebase && window.FIREBASE_CONFIG.apiKey){
+  firebase.initializeApp(window.FIREBASE_CONFIG); fs=firebase.firestore(); auth=firebase.auth();
+  const UA=navigator.userAgent||"", IN_APP=/\bLine\/|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|; wv\)/i.test(UA);
+  if(IN_APP){ $("#inapp").hidden=false; const u=location.origin+location.pathname; $("#inappUrl").value=u;
+    $("#inappCopy").onclick=async()=>{ try{ await navigator.clipboard.writeText(u); $("#inappCopy").textContent="已複製 ✓"; }catch(_){ const i=$("#inappUrl"); i.select(); try{document.execCommand("copy"); $("#inappCopy").textContent="已複製 ✓";}catch(__){} } }; }
+  auth.getRedirectResult().catch(()=>{});
+  const provider=new firebase.auth.GoogleAuthProvider(); provider.setCustomParameters({prompt:"select_account"});
+  $("#login").onclick=()=>{ $("#gateMsg").textContent="";
+    auth.signInWithPopup(provider).catch(err=>{
+      /* 不用 signInWithRedirect：手機 Safari／Chrome 會出現「missing initial state」錯誤頁 */
+      if(err.code==="auth/popup-blocked") $("#gateMsg").innerHTML="登入視窗被擋住了。請再按一次「用 Google 登入」。<br>如果還是不行：iPhone 到「設定 → App → Safari」，關掉「<b>阻擋彈出式視窗</b>」後再試。";
+      else if(err.code==="auth/operation-not-supported-in-this-environment"||err.code==="auth/web-storage-unsupported") $("#gateMsg").textContent="這個瀏覽器不支援登入，請改用 Safari 或 Chrome 打開，而且不要用「無痕模式」。";
+      else if(err.code==="auth/popup-closed-by-user"||err.code==="auth/cancelled-popup-request") $("#gateMsg").textContent="登入視窗被關掉了，請再按一次。如果一直失敗，請改用 Safari 或 Chrome 打開。";
+      else $("#gateMsg").textContent="登入失敗，請改用 Safari 或 Chrome 打開這個網址再試一次。（"+(err.code||err.message)+"）"; }); };
+  $("#logout").onclick=()=>auth.signOut();
+  /* Email ＋ 密碼登入（給 Google 登入不了的手機用） */
+  const PW_ERR={"auth/invalid-email":"Email 格式不對","auth/missing-password":"請輸入密碼","auth/weak-password":"密碼至少要 6 個字",
+    "auth/email-already-in-use":"這個 Email 已經建立過帳號了，請直接按「登入」。如果之前是用 Google 登入，請繼續用 Google。",
+    "auth/invalid-credential":"Email 或密碼不對","auth/wrong-password":"密碼不對","auth/user-not-found":"這個 Email 還沒建立帳號，請按「第一次使用：建立帳號」",
+    "auth/too-many-requests":"嘗試太多次了，請等幾分鐘再試","auth/operation-not-allowed":"管理者還沒開啟 Email 登入功能，請通知 Maggie"};
+  const pwErr=e=>{ $("#pwMsg").textContent=PW_ERR[e.code]||("登入失敗："+(e.code||e.message)); };
+  const pwVals=()=>[$("#pwEmail").value.trim().toLowerCase(), $("#pwPass").value];
+  const contUrl={url:location.origin+location.pathname};
+  $("#pwLogin").onclick=()=>{ const [e,p]=pwVals(); $("#pwMsg").textContent=""; auth.signInWithEmailAndPassword(e,p).catch(pwErr); };
+  $("#pwSignup").onclick=()=>{ const [e,p]=pwVals(); $("#pwMsg").textContent="";
+    auth.createUserWithEmailAndPassword(e,p).then(c=>c.user.sendEmailVerification(contUrl)).catch(pwErr); };
+  $("#pwForgot").onclick=()=>{ const [e]=pwVals(); if(!e){ $("#pwMsg").textContent="請先在上面填 Email，再按「忘記密碼」"; return; }
+    auth.sendPasswordResetEmail(e,contUrl).then(()=>{ $("#pwMsg").textContent="已寄出重設密碼的信，請到信箱查看。"; }).catch(pwErr); };
+  $("#verifyDone").onclick=async()=>{ const u=auth.currentUser; if(!u) return; await u.reload();
+    if(auth.currentUser.emailVerified){ await auth.currentUser.getIdToken(true); $("#verifyBox").hidden=true; startUser(auth.currentUser); }
+    else $("#verifyMsg").textContent="還沒驗證成功，請先按信裡的連結。"; };
+  $("#verifyResend").onclick=()=>{ const u=auth.currentUser; if(u) u.sendEmailVerification(contUrl).then(()=>{ $("#verifyMsg").textContent="已重寄，請到信箱查看。"; }).catch(e=>{ $("#verifyMsg").textContent=PW_ERR[e.code]||e.code; }); };
+  $("#verifyOut").onclick=()=>auth.signOut();
+  function startUser(u){ $("#who").textContent=(TEACHER_NAMES[(u.email||"").toLowerCase()] ? TEACHER_NAMES[u.email.toLowerCase()]+"（"+u.email+"）" : u.email)+(VIEWERS.includes((u.email||"").toLowerCase())?"・僅檢視":""); $("#logout").hidden=false; start(); }
+  auth.onAuthStateChanged(u=>{
+    $("#verifyBox").hidden=true;
+    if(u && !u.emailVerified && u.providerData.some(p=>p.providerId==="password")){
+      $("#app").hidden=true; $("#gate").hidden=false; $("#verifyBox").hidden=false; $("#verifyMail").textContent=u.email; $("#logout").hidden=false; setStatus("等待驗證 Email"); return; }
+    if(u){ startUser(u); return; }
+    { if(unsub){unsub();unsub=null;} $("#who").textContent=""; $("#logout").hidden=true; $("#app").hidden=true; $("#gate").hidden=false; setStatus("尚未登入"); }
+  });
+} else {
+  setStatus("離線預覽（未連資料庫）"); $("#gate").hidden=true; $("#app").hidden=false; canWrite=true; render();
+}
+</script>
+</body>
+</html>
