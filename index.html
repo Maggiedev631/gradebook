@@ -432,16 +432,17 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .gbtn:hover{border-color:var(--grape)}
 .dycols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
 @media (max-width:900px){.dycols{grid-template-columns:minmax(0,1fr)}}
-#dyProg,#dyHw{width:100%;line-height:1.7;min-height:0}
+#dyProg,#dyHw,#dyNext{width:100%;line-height:1.7;min-height:0}
 .dychips{display:flex;flex-wrap:wrap;gap:6px}
 .dychip{border:1.5px dashed var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
 .dychip:hover{border-color:var(--yellow);color:var(--amber);background:var(--yellow-s)}
 .dylist{display:grid;gap:6px}
-.dyrow{display:grid;grid-template-columns:110px auto minmax(0,1fr);gap:10px;align-items:center;padding:6px 8px;border-radius:12px}
+.dyrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 10px;align-items:center;padding:8px 10px;border-radius:12px}
+.dyrow .dynote{grid-column:2}
 .dyrow:nth-child(odd){background:var(--sunk)}
 .dynm{overflow-wrap:anywhere}
-.dynote{width:100%;padding:6px 10px!important;font-size:13.5px}
-@media (max-width:620px){.dyrow{grid-template-columns:minmax(0,1fr) auto}.dynote{grid-column:1/-1}}
+.dynote{width:100%;padding:6px 10px!important;font-size:13.5px;background:var(--surface)!important;border:1.5px solid var(--line)!important}
+@media (max-width:620px){.dyrow{grid-template-columns:minmax(0,1fr)}.dyrow .dynote{grid-column:1}}
 .dypre{white-space:pre-wrap;word-break:break-word;font-family:var(--f-body);font-size:14.5px;line-height:1.75;background:var(--yellow-s);border-radius:16px;padding:16px 18px;margin:0;color:var(--ink)}
 .dyhist{display:grid;gap:6px}
 .dyh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;text-align:left;border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:8px 12px;cursor:pointer}
@@ -450,6 +451,11 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .dyh span{color:var(--muted);font-size:13px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dyh em{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px}
 .dyh em.abs{background:var(--amber-s);color:var(--amber)}.dyh em.miss{background:var(--red-s);color:var(--red)}
+.dychecks{display:grid;gap:6px}
+.dycheck{display:flex;align-items:center;gap:8px}
+.dycheck input{flex:1;min-width:0}
+.dyci{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange-s);color:var(--orange);font-weight:800;font-size:13px;display:grid;place-items:center}
+.dyrow .seg button.miss{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -1710,32 +1716,44 @@ S.diary=[];S.dyDrafts={};S.dyShowNo=true;
 try{S.dyShowNo=localStorage.getItem("gb.dyno")!=="0"}catch(_){}
 const DY_PROG=["課本 Student Book p.","習作 Workbook p.","單字 Vocabulary：","句型 Sentence Patterns：","文法 Grammar：","自然發音 Phonics：","閱讀 Reading：","歌曲 Song：","小考 Quiz："];
 const DY_HW=["習作 Workbook p.","背單字 Memorize vocabulary：","錄音 Recording：","抄寫 Copy：","朗讀 Read aloud：","複習 Review：","準備小考 Prepare for quiz：","家長簽名 Parent's signature"];
+const DY_NEXT=["單字考 Vocabulary Quiz：","單元考 Unit Test：","句型考 Sentence Quiz：","聽寫 Dictation：","口說考 Speaking Test：","期中考 Midterm Exam","期末考 Final Exam"];
 const dyId=(c,d)=>"d"+String(d).replace(/-/g,"")+"_"+hash(c).toString(36);
 const diaryOf=(c,d)=>(S.diary||[]).find(x=>x.cls===c&&x.date===d&&!x.deleted);
 const dyLines=t=>String(t||"").split("\n").map(x=>x.trim()).filter(Boolean);
-const dyNum=t=>{const l=dyLines(t);return l.length?l.map((x,i)=>`${i+1}. ${x.replace(/^\d+\s*[.、)）]\s*/,"")}`).join("\n"):"1. "};
-function dyFromDoc(c,d,doc){return{key:c+"|"+d,cls:c,date:d,prog:doc?.prog||"",hw:doc?.hw||"",absent:[...(doc?.absent||[])],nohw:[...(doc?.nohw||[])],notes:{...(doc?.notes||{})},dirty:false,savedAt:doc?.updatedAt||0,exists:!!doc,by:doc?.by||null}}
+const dyClean=x=>x.replace(/^\d+\s*[.、)）]\s*/,"");
+const dyNum=t=>{const l=dyLines(t);return l.length?l.map((x,i)=>`${i+1}. ${dyClean(x)}`).join("\n"):"1. "};
+const dyCheckName=c=>String(c.name||"").trim()||"（未命名作業）";
+/* 舊格式（單一未交名單）轉成多項作業 */
+function dyChecksOf(doc){if(!doc)return [];if(Array.isArray(doc.checks))return doc.checks.map(c=>({id:c.id,name:c.name||"",nohw:[...(c.nohw||[])],itemId:c.itemId||null}));
+  if((doc.nohw||[]).length||doc.hwItemId){const it=doc.hwItemId&&(S.allI||[]).find(i=>i.id===doc.hwItemId);return [{id:"c0",name:it?.title||("作業 "+md(doc.date)),nohw:[...(doc.nohw||[])],itemId:doc.hwItemId||null}]}return []}
+function dyPrevHw(c,d){const p=(S.diary||[]).filter(x=>x.cls===c&&!x.deleted&&x.date<d).sort((a,b)=>b.date.localeCompare(a.date))[0];return p?dyLines(p.hw).map(x=>dyClean(x).replace(/[。.]$/,"")):[]}
+function dyFromDoc(c,d,doc){const checks=doc?dyChecksOf(doc):dyPrevHw(c,d).map(n=>({id:newKey(),name:n,nohw:[],itemId:null}));
+  return{key:c+"|"+d,cls:c,date:d,prog:doc?.prog||"",hw:doc?.hw||"",next:doc?.next||"",absent:[...(doc?.absent||[])],checks,notes:{...(doc?.notes||{})},dirty:false,savedAt:doc?.updatedAt||0,exists:!!doc,by:doc?.by||null}}
 function dyLoad(){const c=S.cls,d=S.dyDate||todayStr(),key=c+"|"+d,doc=diaryOf(c,d);let dr=S.dyDrafts[key];
   if(!dr||(!dr.dirty&&dr.savedAt!==(doc?.updatedAt||0)))dr=S.dyDrafts[key]=dyFromDoc(c,d,doc);S.dy=dr;return dr}
+const dyMissOf=(dy,sid)=>dy.checks.filter(c=>c.nohw.includes(sid));
 function dyText(dy,sid){
   const out=["親愛的家長您好：","Dear Parents,","","🔺今日上課進度 Today's Lesson：",dyNum(dy.prog),"","🔺回家作業 Homework：",dyNum(dy.hw)];
-  if(sid){const s=S.students.find(x=>x.id===sid);const nm=s?s.name:"",ex=[];
+  if(dyLines(dy.next).length)out.push("","🔺下次測驗 Next Test：",dyNum(dy.next));
+  if(sid){const s=S.students.find(x=>x.id===sid);const nm=s?s.name:"",ex=[],miss=dyMissOf(dy,sid).map(dyCheckName);
     if(dy.absent.includes(sid))ex.push(`${nm} 今天請假，老師會再安排補課。`,`${nm} was absent today. A make-up lesson will be arranged.`);
-    if(dy.nohw.includes(sid))ex.push(`${nm} 今天作業未交，麻煩協助叮嚀補交。`,`${nm} did not hand in today's homework. Please help make sure it gets done.`);
+    if(miss.length)ex.push(`${nm} 未交作業：${miss.join("、")}，麻煩協助叮嚀補交。`,`${nm} has not handed in: ${miss.join(", ")}. Please help make sure it gets done.`);
     if((dy.notes[sid]||"").trim())ex.push(dy.notes[sid].trim());
     if(ex.length)out.push("","🔺個別提醒 Note：",...ex);
-  }else if(S.dyShowNo&&dy.nohw.length){const nms=studentsOf(dy.cls).filter(s=>dy.nohw.includes(s.id)).map(s=>s.name);if(nms.length)out.push("","🔺未交作業 Missing Homework：",nms.join("、"))}
+  }else if(S.dyShowNo){const stus=studentsOf(dy.cls),rows=dy.checks.map(c=>({c,n:stus.filter(s=>c.nohw.includes(s.id)).map(s=>s.name)})).filter(r=>r.n.length);
+    if(rows.length)out.push("","🔺未交作業 Missing Homework：",...rows.map((r,i)=>`${rows.length>1?(i+1)+". ":""}${dyCheckName(r.c)}：${r.n.join("、")}`))}
   out.push("","麻煩家長協助叮嚀，謝謝！","Please kindly remind your child. Thank you!");
   return out.join("\n");
 }
 function dyStat(dy){return dy.dirty?`<span class="pill p-miss">尚未儲存</span>`:dy.exists?`<span class="pill p-ok">已儲存${dy.savedAt?" · "+esc(fmtTs(dy.savedAt).slice(5)):""}${dy.by?" · "+esc(who(dy.by)):""}</span>`:`<span class="pill" style="background:var(--sunk);color:var(--muted)">這天還沒寫</span>`}
-function dyChips(field){return `<div class="dychips">${(field==="prog"?DY_PROG:DY_HW).map(p=>`<button type="button" class="dychip" data-dyins="${field}" data-p="${esc(p)}">＋ ${esc(p)}</button>`).join("")}</div>`}
+function dyChips(field){const l=field==="prog"?DY_PROG:field==="next"?DY_NEXT:DY_HW;return `<div class="dychips">${l.map(p=>`<button type="button" class="dychip" data-dyins="${field}" data-p="${esc(p)}">＋ ${esc(p)}</button>`).join("")}</div>`}
 function vDiary(){
   if(!S.cls||S.cls==="__all")return emptyBox("先選一個班級","上方點選班級後，就能寫這班的聯絡簿。");
   const dy=dyLoad(),ro=S.readOnly,stus=studentsOf(S.cls),dis=ro?"disabled":"";
-  const flagged=stus.filter(s=>dy.absent.includes(s.id)||dy.nohw.includes(s.id)||(dy.notes[s.id]||"").trim());
+  const flagged=stus.filter(s=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim());
   const hist=(S.diary||[]).filter(x=>x.cls===S.cls&&!x.deleted).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,14);
   const drafts=Object.values(S.dyDrafts).filter(x=>x.dirty&&x.key!==dy.key&&x.cls===S.cls);
+  const prevHw=dyPrevHw(dy.cls,dy.date);
   return `<div class="dycols"><div class="stack" style="gap:18px">
     <section class="card stack">
       <div class="row between"><div class="row"><button class="btn sm" data-dynav="-1" aria-label="前一天">‹</button>${dateField("dyDate",dy.date)}<button class="btn sm" data-dynav="1" aria-label="後一天">›</button>${dy.date!==todayStr()?`<button class="btn sm" data-dyday="${todayStr()}">今天</button>`:""}</div><span id="dyStat">${dyStat(dy)}</span></div>
@@ -1746,12 +1764,21 @@ function vDiary(){
       <label class="label" for="dyHw">🔺回家作業（一行一項）</label>
       <textarea id="dyHw" data-k="dyHw" data-keepv="1" rows="4" ${dis} placeholder="例：習作 Workbook p.12-13&#10;錄音 Recording：Unit 3 課文">${esc(dy.hw)}</textarea>
       ${ro?"":dyChips("hw")}
+      <label class="label" for="dyNext">🔺下次測驗（一行一項，可空白）</label>
+      <textarea id="dyNext" data-k="dyNext" data-keepv="1" rows="2" ${dis} placeholder="例：期中考口說考試&#10;U3L1 單字考">${esc(dy.next)}</textarea>
+      ${ro?"":dyChips("next")}
+    </section>
+    <section class="card stack">
+      <div class="row between"><h3>今天檢查的作業</h3><span class="sub">${dy.checks.length} 項</span></div>
+      <div class="sub">名稱自己取，會用這個名稱列進「登記成績」和「未完成總表」。${!dy.exists&&dy.checks.length&&prevHw.length?"已先帶入上一次聯絡簿的回家作業，可以修改或刪除。":""}</div>
+      <div class="dychecks">${dy.checks.map((c,i)=>`<div class="dycheck"><span class="dyci">${i+1}</span><input type="text" data-dycname="${c.id}" data-k="dyc-${c.id}" data-keepv="1" value="${esc(c.name)}" placeholder="作業名稱，例：U2L2 單字 4 次" ${dis}>${ro?"":`<button type="button" class="tdx" data-dycdel="${c.id}" aria-label="刪除這項作業">×</button>`}</div>`).join("")||`<div class="sub">今天沒有要檢查的作業</div>`}</div>
+      ${ro?"":`<div class="row"><button class="btn sm" data-dycadd="1">＋ 新增作業</button>${prevHw.length?`<button class="btn sm sky" data-dycprev="1">帶入上次的回家作業</button>`:""}</div>`}
     </section>
     <section class="card stack">
       <div class="row between"><h3>學生狀況與個別備註</h3><span class="sub">${stus.length} 位</span></div>
-      <div class="sub">點「請假」會自動建立補課（內容帶入今天進度）；點「未交作業」會自動列進未完成總表和學生查詢。</div>
-      ${stus.length?`<div class="dylist">${stus.map(s=>{const a=dy.absent.includes(s.id),n=dy.nohw.includes(s.id);return `<div class="dyrow"><b class="dynm">${esc(s.name)}</b>
-        <div class="seg"><button class="abs" data-dyabs="${s.id}" aria-pressed="${a}" ${dis}>請假</button><button class="miss" data-dynohw="${s.id}" aria-pressed="${n}" ${dis}>未交作業</button></div>
+      <div class="sub">點「請假」會自動建立補課；點作業名稱代表<b style="color:var(--red)">這項未交</b>，會自動列進未完成總表。</div>
+      ${stus.length?`<div class="dylist">${stus.map(s=>{const a=dy.absent.includes(s.id);return `<div class="dyrow"><b class="dynm">${esc(s.name)}</b>
+        <div class="seg"><button class="abs" data-dyabs="${s.id}" aria-pressed="${a}" ${dis}>請假</button>${dy.checks.map(c=>`<button class="miss" data-dynohw="${s.id}" data-c="${c.id}" aria-pressed="${c.nohw.includes(s.id)}" ${dis}>${c.nohw.includes(s.id)?"✗ ":""}<span data-dyclabel="${c.id}">${esc(dyCheckName(c))}</span></button>`).join("")}</div>
         <input type="text" class="dynote" data-dynote="${s.id}" data-k="dyn-${s.id}" data-keepv="1" value="${esc(dy.notes[s.id]||"")}" placeholder="個別備註（可空白）" ${dis}></div>`}).join("")}</div>`:`<div class="empty">這個班級還沒有學生</div>`}
       ${ro?"":`<div class="row" style="justify-content:flex-end"><button class="btn primary" id="dySave">儲存聯絡簿</button></div>`}
     </section></div>
@@ -1767,60 +1794,75 @@ function vDiary(){
       <div id="dyInd">${dyIndHtml(dy,flagged)}</div>
     </section>
     <section class="card stack"><h3>最近的聯絡簿</h3>
-      ${hist.length?`<div class="dyhist">${hist.map(x=>`<button class="dyh ${x.date===dy.date?"on":""}" data-dyday="${x.date}"><b>${esc(fmtD(x.date))}</b><span>${esc(dyLines(x.prog)[0]||"（未填進度）")}</span>${(x.absent||[]).length?`<em class="abs">請假 ${(x.absent||[]).length}</em>`:""}${(x.nohw||[]).length?`<em class="miss">未交 ${(x.nohw||[]).length}</em>`:""}</button>`).join("")}</div>`:`<div class="sub">這班還沒有聯絡簿紀錄</div>`}
+      ${hist.length?`<div class="dyhist">${hist.map(x=>{const nm=new Set(dyChecksOf(x).flatMap(c=>c.nohw)).size;return `<button class="dyh ${x.date===dy.date?"on":""}" data-dyday="${x.date}"><b>${esc(fmtD(x.date))}</b><span>${esc(dyClean(dyLines(x.prog)[0]||"（未填進度）"))}</span>${(x.absent||[]).length?`<em class="abs">請假 ${(x.absent||[]).length}</em>`:""}${nm?`<em class="miss">未交 ${nm}</em>`:""}</button>`}).join("")}</div>`:`<div class="sub">這班還沒有聯絡簿紀錄</div>`}
     </section></div></div>`;
 }
 function dyIndHtml(dy,flagged){if(!flagged.length)return `<div class="sub">目前沒有</div>`;
-  return flagged.map(s=>`<div class="bookrow"><div><b>${esc(s.name)}</b> ${dy.absent.includes(s.id)?`<span class="pill p-abs">請假</span>`:""} ${dy.nohw.includes(s.id)?`<span class="pill p-miss">未交作業</span>`:""}${(dy.notes[s.id]||"").trim()?`<div class="sub">${esc(dy.notes[s.id])}</div>`:""}</div><button class="btn sm sky" data-dycopy="${s.id}">複製</button></div>`).join("")}
+  return flagged.map(s=>`<div class="bookrow"><div><b>${esc(s.name)}</b> ${dy.absent.includes(s.id)?`<span class="pill p-abs">請假</span>`:""} ${dyMissOf(dy,s.id).map(c=>`<span class="pill p-miss">未交 ${esc(dyCheckName(c))}</span>`).join(" ")}${(dy.notes[s.id]||"").trim()?`<div class="sub">${esc(dy.notes[s.id])}</div>`:""}</div><button class="btn sm sky" data-dycopy="${s.id}">複製</button></div>`).join("")}
 function dyLive(){const dy=S.dy;if(!dy)return;const p=$("#dyPre");if(p)p.textContent=dyText(dy);const st=$("#dyStat");if(st)st.innerHTML=dyStat(dy);
-  const ind=$("#dyInd");if(ind){const fl=studentsOf(dy.cls).filter(s=>dy.absent.includes(s.id)||dy.nohw.includes(s.id)||(dy.notes[s.id]||"").trim());ind.innerHTML=dyIndHtml(dy,fl)}}
-function dyMkContent(dy){return [...dyLines(dy.prog),...dyLines(dy.hw).map(x=>"回家作業："+x)].join("\n")}
+  const ind=$("#dyInd");if(ind){const fl=studentsOf(dy.cls).filter(s=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim());ind.innerHTML=dyIndHtml(dy,fl)}}
+function dyMkContent(dy){return [...dyLines(dy.prog).map(dyClean),...dyLines(dy.hw).map(x=>"回家作業："+dyClean(x))].join("\n")}
 async function dySave(){
-  const dy=S.dy;if(!dy||S.readOnly)return;const id=dyId(dy.cls,dy.date),old=diaryOf(dy.cls,dy.date)||{},stus=studentsOf(dy.cls),ids=new Set(stus.map(s=>s.id));
-  const absent=dy.absent.filter(x=>ids.has(x)),nohw=dy.nohw.filter(x=>ids.has(x)),notes={};Object.entries(dy.notes).forEach(([k,v])=>{if(ids.has(k)&&String(v).trim())notes[k]=String(v).trim()});
-  const now=Date.now(),base={cls:dy.cls,date:dy.date,prog:dy.prog.trim(),hw:dy.hw.trim(),absent,nohw,notes,updatedAt:now,by:ME||null,createdAt:old.createdAt||now,createdBy:old.createdBy||ME||null};
+  const dy=S.dy;if(!dy||S.readOnly)return;const id=dyId(dy.cls,dy.date),old=diaryOf(dy.cls,dy.date)||null,stus=studentsOf(dy.cls),ids=new Set(stus.map(s=>s.id));
+  const absent=dy.absent.filter(x=>ids.has(x)),notes={};Object.entries(dy.notes).forEach(([k,v])=>{if(ids.has(k)&&String(v).trim())notes[k]=String(v).trim()});
+  const checks=dy.checks.filter(c=>String(c.name||"").trim()||c.nohw.length).map(c=>({id:c.id,name:String(c.name||"").trim()||"作業 "+md(dy.date),nohw:c.nohw.filter(x=>ids.has(x)),itemId:c.itemId||null}));
+  const oldChecks=dyChecksOf(old),oldAbsent=old?.absent||[];
+  const now=Date.now(),base={cls:dy.cls,date:dy.date,prog:dy.prog.trim(),hw:dy.hw.trim(),next:dy.next.trim(),absent,notes,nohw:[],hwItemId:null,updatedAt:now,by:ME||null,createdAt:old?.createdAt||now,createdBy:old?.createdBy||ME||null};
   inflight++;setSync();
   try{
-    await Store.set("diary",id,{...base,mkIds:old.mkIds||{},hwItemId:old.hwItemId||null});
-    const mkIds={...(old.mkIds||{})},content=dyMkContent(dy);let nMk=0;
+    await Store.set("diary",id,{...base,mkIds:old?.mkIds||{},checks:oldChecks});
+    /* 請假 → 補課 */
+    const mkIds={...(old?.mkIds||{})},content=dyMkContent(dy);let nMk=0;
     for(const sid of absent){const m=(S.allM||[]).find(x=>x.id===mkIds[sid]);
       if(m&&!m.deleted){if(!m.done&&!(m.progDone||[]).length&&m.content!==content)await Store.update("makeups",m.id,{content})}
       else{const nid=Store.newId("makeups");await Store.set("makeups",nid,{sid,cls:dy.cls,missDate:dy.date,content,planDate:"",note:"由聯絡簿自動建立",done:false,fromDiary:id,createdAt:now,createdBy:ME||null});mkIds[sid]=nid;nMk++}}
     for(const sid of Object.keys(mkIds))if(!absent.includes(sid)){const m=(S.allM||[]).find(x=>x.id===mkIds[sid]);
       if(m&&!m.deleted&&!m.done&&!(m.progDone||[]).length)await Store.update("makeups",m.id,{deleted:true,deletedAt:now,deletedBy:ME||null});delete mkIds[sid]}
-    let hwItemId=old.hwItemId||null;const item=hwItemId&&(S.allI||[]).find(i=>i.id===hwItemId&&!i.deleted),title="聯絡簿作業 "+md(dy.date);
-    if(!item&&nohw.length){const nid=Store.newId("items"),results={};stus.forEach(s=>results[s.id]={st:nohw.includes(s.id)?"":"done"});
-      await Store.set("items",nid,{cls:dy.cls,type:"hw",title,date:dy.date,results,fromDiary:id,createdAt:now,createdBy:ME||null});hwItemId=nid}
-    else if(item){const prev=new Set(old.nohw||[]),flat={updatedAt:now};stus.forEach(s=>{const on=nohw.includes(s.id),was=prev.has(s.id),r=(item.results||{})[s.id];
-        if(on&&!was)flat[`results.${s.id}.st`]="";else if(!on&&was)flat[`results.${s.id}.st`]="done";else if(!r)flat[`results.${s.id}.st`]=on?"":"done"});
-      await Store.update("items",item.id,flat)}
-    await Store.update("diary",id,{mkIds,hwItemId:hwItemId||null});
+    /* 每項作業 → 一個「作業」評量項目 */
+    const want=(c,ab,sid)=>c&&c.nohw.includes(sid)?"":ab.includes(sid)?"absent":"done";let nIt=0;
+    for(const c of checks){const oc=oldChecks.find(x=>x.id===c.id),item=c.itemId&&(S.allI||[]).find(i=>i.id===c.itemId&&!i.deleted);
+      if(!item){const nid=Store.newId("items"),results={};stus.forEach(s=>results[s.id]={st:want(c,absent,s.id)});
+        await Store.set("items",nid,{cls:dy.cls,type:"hw",title:c.name,date:dy.date,results,fromDiary:id,createdAt:now,createdBy:ME||null});c.itemId=nid;nIt++}
+      else{const flat={updatedAt:now};if(item.title!==c.name)flat.title=c.name;
+        stus.forEach(s=>{const nw=want(c,absent,s.id),was=oc?want(oc,oldAbsent,s.id):null,r=(item.results||{})[s.id];if(!r||nw!==was)flat[`results.${s.id}.st`]=nw});
+        await Store.update("items",item.id,flat)}}
+    for(const oc of oldChecks)if(oc.itemId&&!checks.some(c=>c.itemId===oc.itemId)){const it=(S.allI||[]).find(i=>i.id===oc.itemId&&!i.deleted);if(it&&it.fromDiary)await Store.update("items",it.id,{deleted:true,deletedAt:now,deletedBy:ME||null})}
+    await Store.update("diary",id,{mkIds,checks});
     dy.dirty=false;delete S.dyDrafts[dy.key];
-    toast("已儲存聯絡簿"+(nMk?`，新增 ${nMk} 筆補課`:""));
+    toast("已儲存聯絡簿"+(nMk?`，新增 ${nMk} 筆補課`:"")+(nIt?`，新增 ${nIt} 項作業`:""));
   }catch(e){
-    if(e&&e.code==="permission-denied")notice(`<b>聯絡簿還不能儲存。</b>Firebase 規則需要開放新的「diary」集合，寫法跟 makeups 一樣，把 <code>diary</code> 加進規則後再按一次儲存。`);
+    if(e&&e.code==="permission-denied")notice(`<b>聯絡簿還不能儲存。</b>請確認 Firebase 規則裡的名單有加上 <code>"diary"</code>。`);
     else writeErr(e);
   }finally{inflight--;setSync();render()}
 }
 /* 補課表單：選缺課日期時自動帶入聯絡簿進度 */
 function mkAutoFill(){const ta=$("#mkContent"),dv=$("#mkMiss");if(!ta||!dv)return;const d=diaryOf(S.cls,dv.value),cur=ta.value.trim(),wasAuto=ta.dataset.auto&&cur===ta.dataset.auto.trim(),h=$("#mkHint");
-  if(d&&(!cur||wasAuto)){const c=dyMkContent(dyFromDoc(S.cls,dv.value,d));ta.value=c;ta.dataset.auto=c;if(h)h.textContent="已從聯絡簿帶入當天上課進度，可以再修改"}
+  if(d&&(!cur||wasAuto)){const c=dyMkContent({prog:d.prog||"",hw:d.hw||""});ta.value=c;ta.dataset.auto=c;if(h)h.textContent="已從聯絡簿帶入當天上課進度，可以再修改"}
   else if(!d&&wasAuto){ta.value="";ta.dataset.auto="";if(h)h.textContent="這天沒有聯絡簿，請手動填寫"}}
+const dyTa={prog:"#dyProg",hw:"#dyHw",next:"#dyNext"};
 document.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.dynav){const d=new Date((S.dyDate||todayStr())+"T00:00");d.setDate(d.getDate()+Number(b.dataset.dynav));S.dyDate=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;return render()}
   if(b.dataset.dyday){S.dyDate=b.dataset.dyday;window.scrollTo({top:0,behavior:"smooth"});return render()}
-  if(b.dataset.dyabs||b.dataset.dynohw){if(S.readOnly||!S.dy)return;const k=b.dataset.dyabs?"absent":"nohw",sid=b.dataset.dyabs||b.dataset.dynohw,l=S.dy[k];
-    S.dy[k]=l.includes(sid)?l.filter(x=>x!==sid):[...l,sid];S.dy.dirty=true;return render()}
-  if(b.dataset.dyins){if(S.readOnly||!S.dy)return;const f=b.dataset.dyins,cur=S.dy[f];S.dy[f]=(cur&&!cur.endsWith("\n")?cur+"\n":cur)+b.dataset.p;S.dy.dirty=true;render();
-    const ta=$(f==="prog"?"#dyProg":"#dyHw");if(ta){ta.focus();const n=ta.value.length;ta.setSelectionRange(n,n)}return}
-  if(b.dataset.dycopy){if(!S.dy)return;return copy(dyText(S.dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy))}
+  if(S.readOnly||!S.dy)return b.dataset.dycopy&&S.dy?copy(dyText(S.dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy)):undefined;
+  const dy=S.dy;
+  if(b.dataset.dyabs){const sid=b.dataset.dyabs;dy.absent=dy.absent.includes(sid)?dy.absent.filter(x=>x!==sid):[...dy.absent,sid];dy.dirty=true;return render()}
+  if(b.dataset.dynohw){const sid=b.dataset.dynohw,c=dy.checks.find(x=>x.id===b.dataset.c);if(!c)return;c.nohw=c.nohw.includes(sid)?c.nohw.filter(x=>x!==sid):[...c.nohw,sid];dy.dirty=true;return render()}
+  if(b.dataset.dycadd){const nid=newKey();dy.checks.push({id:nid,name:"",nohw:[],itemId:null});dy.dirty=true;render();document.querySelector(`[data-dycname="${nid}"]`)?.focus();return}
+  if(b.dataset.dycdel){const c=dy.checks.find(x=>x.id===b.dataset.dycdel);if(!c)return;if((c.nohw.length||c.itemId)&&!await ask(`刪除「${dyCheckName(c)}」？${c.itemId?"儲存後登記成績裡的這項作業也會一起刪除。":""}`))return;
+    dy.checks=dy.checks.filter(x=>x!==c);dy.dirty=true;return render()}
+  if(b.dataset.dycprev){const have=new Set(dy.checks.map(c=>c.name.trim()));const add=dyPrevHw(dy.cls,dy.date).filter(n=>!have.has(n));if(!add.length){toast("上次的回家作業都已經在清單裡了");return}
+    add.forEach(n=>dy.checks.push({id:newKey(),name:n,nohw:[],itemId:null}));dy.dirty=true;toast(`已帶入 ${add.length} 項`);return render()}
+  if(b.dataset.dyins){const f=b.dataset.dyins,cur=dy[f];dy[f]=(cur&&!cur.endsWith("\n")?cur+"\n":cur)+b.dataset.p;dy.dirty=true;render();
+    const ta=$(dyTa[f]);if(ta){ta.focus();const n=ta.value.length;ta.setSelectionRange(n,n)}return}
+  if(b.dataset.dycopy)return copy(dyText(dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy));
   if(b.id==="dySave")return dySave();
 });
-document.addEventListener("input",e=>{const t=e.target;if(!S.dy||S.tab!=="diary")return;
-  if(t.id==="dyProg"){S.dy.prog=t.value;S.dy.dirty=true;dyLive()}
-  else if(t.id==="dyHw"){S.dy.hw=t.value;S.dy.dirty=true;dyLive()}
-  else if(t.dataset&&t.dataset.dynote){S.dy.notes[t.dataset.dynote]=t.value;S.dy.dirty=true;dyLive()}
-});
+document.addEventListener("input",e=>{const t=e.target;if(!S.dy||S.tab!=="diary")return;const dy=S.dy;
+  if(t.id==="dyProg")dy.prog=t.value;else if(t.id==="dyHw")dy.hw=t.value;else if(t.id==="dyNext")dy.next=t.value;
+  else if(t.dataset&&t.dataset.dynote)dy.notes[t.dataset.dynote]=t.value;
+  else if(t.dataset&&t.dataset.dycname){const c=dy.checks.find(x=>x.id===t.dataset.dycname);if(!c)return;c.name=t.value;document.querySelectorAll(`[data-dyclabel="${CSS.escape(c.id)}"]`).forEach(el=>el.textContent=dyCheckName(c))}
+  else return;
+  dy.dirty=true;dyLive()});
 document.addEventListener("change",e=>{const t=e.target;
   if(t.id==="dyDate"){if(t.value){S.dyDate=t.value;render()}return}
   if(t.id==="dyShowNo"){S.dyShowNo=t.checked;try{localStorage.setItem("gb.dyno",t.checked?"1":"0")}catch(_){}dyLive();return}
