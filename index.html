@@ -455,6 +455,7 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .dycheck{display:flex;align-items:center;gap:8px}
 .dycheck input{flex:1;min-width:0}
 .dyci{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange-s);color:var(--orange);font-weight:800;font-size:13px;display:grid;place-items:center}
+.dyrecmk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--yellow-s);border-radius:12px;padding:8px 12px;font-size:13.5px}
 .score.wk{width:100px;font-size:14px}
 .dyrow .seg button.miss{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
@@ -1727,11 +1728,11 @@ else{
 S.diary=[];S.dyDrafts={};S.dyShowNo=true;
 try{S.dyShowNo=localStorage.getItem("gb.dyno")!=="0";S.dyShowRec=localStorage.getItem("gb.dyrec")!=="0"}catch(_){S.dyShowRec=true}
 /* 錄音評分未完成（未錄音／未達標） */
-function dyRecList(cls){const stus=studentsOf(cls);return itemsOf(cls).filter(isRecS).slice().reverse().map(i=>({i,rows:stus.filter(s=>status(i,s.id).out).map(s=>({s,l:status(i,s.id).l}))})).filter(x=>x.rows.length)}
+function dyRecList(cls){const stus=studentsOf(cls),d=S.dy&&S.dy.cls===cls?S.dy.date:todayStr();return itemsOf(cls).filter(i=>isRecS(i)&&(i.date||"")<d).slice().reverse().map(i=>({i,rows:stus.filter(s=>status(i,s.id).out).map(s=>({s,l:status(i,s.id).l}))})).filter(x=>x.rows.length)}
 const dyRecOf=(cls,sid)=>dyRecList(cls).map(x=>({i:x.i,r:x.rows.find(r=>r.s.id===sid)})).filter(x=>x.r);
 const dyFlag=(dy,s)=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim()||(S.dyShowRec&&dyRecOf(dy.cls,s.id).length);
 const DY_PROG=["課本 Student Book p.","習作 Workbook p.","單字 Vocabulary：","句型 Sentence Patterns：","文法 Grammar：","自然發音 Phonics：","閱讀 Reading：","歌曲 Song：","小考 Quiz："];
-const DY_HW=["習作 Workbook p.","背單字 Memorize vocabulary：","錄音 Recording：","抄寫 Copy：","朗讀 Read aloud：","複習 Review：","準備小考 Prepare for quiz：","家長簽名 Parent's signature"];
+const DY_HW=["Speaklens 錄音：","習作 Workbook p.","背單字 Memorize vocabulary：","錄音 Recording：","抄寫 Copy：","朗讀 Read aloud：","複習 Review：","準備小考 Prepare for quiz：","家長簽名 Parent's signature"];
 const DY_NEXT=["單字考 Vocabulary Quiz：","單元考 Unit Test：","句型考 Sentence Quiz：","聽寫 Dictation：","口說考 Speaking Test：","期中考 Midterm Exam","期末考 Final Exam"];
 const dyId=(c,d)=>"d"+String(d).replace(/-/g,"")+"_"+hash(c).toString(36);
 const diaryOf=(c,d)=>(S.diary||[]).find(x=>x.cls===c&&x.date===d&&!x.deleted);
@@ -1742,7 +1743,11 @@ const dyCheckName=c=>String(c.name||"").trim()||"（未命名作業）";
 /* 舊格式（單一未交名單）轉成多項作業 */
 function dyChecksOf(doc){if(!doc)return [];if(Array.isArray(doc.checks))return doc.checks.map(c=>({id:c.id,name:c.name||"",nohw:[...(c.nohw||[])],itemId:c.itemId||null}));
   if((doc.nohw||[]).length||doc.hwItemId){const it=doc.hwItemId&&(S.allI||[]).find(i=>i.id===doc.hwItemId);return [{id:"c0",name:it?.title||("作業 "+md(doc.date)),nohw:[...(doc.nohw||[])],itemId:doc.hwItemId||null}]}return []}
-function dyPrevHw(c,d){const p=(S.diary||[]).filter(x=>x.cls===c&&!x.deleted&&x.date<d).sort((a,b)=>b.date.localeCompare(a.date))[0];return p?dyLines(p.hw).map(x=>dyClean(x).replace(/[。.]$/,"")):[]}
+const dyIsRec=l=>/speaklens|錄音|recording/i.test(l);
+const dyRecTitle=l=>{const t=dyClean(l).replace(/^speaklens\s*/i,"").replace(/^(錄音|recording)\s*/i,"").replace(/^(錄音|recording)\s*/i,"").replace(/^[：:]\s*/,"").replace(/[。.]$/,"").trim();return t||dyClean(l)};
+const dyNorm=t=>String(t||"").toLowerCase().replace(/[\s\-_–—]/g,"");
+function dyRecPending(dy){const have=new Set(itemsOf(dy.cls).filter(isRecS).map(i=>dyNorm(i.title)));return [...new Set(dyLines(dy.hw).filter(dyIsRec).map(dyRecTitle))].filter(t=>!have.has(dyNorm(t)))}
+function dyPrevHw(c,d){const p=(S.diary||[]).filter(x=>x.cls===c&&!x.deleted&&x.date<d).sort((a,b)=>b.date.localeCompare(a.date))[0];return p?dyLines(p.hw).filter(x=>!dyIsRec(x)).map(x=>dyClean(x).replace(/[。.]$/,"")):[]}
 function dyFromDoc(c,d,doc){const checks=doc?dyChecksOf(doc):dyPrevHw(c,d).map(n=>({id:newKey(),name:n,nohw:[],itemId:null}));
   return{key:c+"|"+d,cls:c,date:d,prog:doc?.prog||"",hw:doc?.hw||"",next:doc?.next||"",absent:[...(doc?.absent||[])],checks,notes:{...(doc?.notes||{})},dirty:false,savedAt:doc?.updatedAt||0,exists:!!doc,by:doc?.by||null}}
 function dyLoad(){const c=S.cls,d=S.dyDate||todayStr(),key=c+"|"+d,doc=diaryOf(c,d);let dr=S.dyDrafts[key];
@@ -1783,13 +1788,14 @@ function vDiary(){
       <label class="label" for="dyHw">🔺回家作業（一行一項）</label>
       <textarea id="dyHw" data-k="dyHw" data-keepv="1" rows="4" ${dis} placeholder="例：習作 Workbook p.12-13&#10;錄音 Recording：Unit 3 課文">${esc(dy.hw)}</textarea>
       ${ro?"":dyChips("hw")}
+      ${ro?"":dyRecPending(dy).map(t=>`<div class="dyrecmk"><span>🎙 「<b>${esc(t)}</b>」是錄音作業，還沒有錄音評分項目</span><button type="button" class="btn sm" style="background:var(--yellow);color:#4a3500" data-dyrecmk="${esc(t)}">建立錄音評分</button></div>`).join("")}
       <label class="label" for="dyNext">🔺下次測驗（一行一項，可空白）</label>
       <textarea id="dyNext" data-k="dyNext" data-keepv="1" rows="2" ${dis} placeholder="例：期中考口說考試&#10;U3L1 單字考">${esc(dy.next)}</textarea>
       ${ro?"":dyChips("next")}
     </section>
     <section class="card stack">
       <div class="row between"><h3>今天檢查的作業</h3><span class="sub">${dy.checks.length} 項</span></div>
-      <div class="sub">名稱自己取，會用這個名稱列進「登記成績」和「未完成總表」。${!dy.exists&&dy.checks.length&&prevHw.length?"已先帶入上一次聯絡簿的回家作業，可以修改或刪除。":""}</div>
+      <div class="sub">名稱自己取，會用這個名稱列進「登記成績」和「未完成總表」。<b>Speaklens 錄音不用加在這裡</b>，它由「錄音評分」記分數，未完成的會自動列進聯絡簿。${!dy.exists&&dy.checks.length&&prevHw.length?"已先帶入上一次聯絡簿的回家作業，可以修改或刪除。":""}</div>
       <div class="dychecks">${dy.checks.map((c,i)=>`<div class="dycheck"><span class="dyci">${i+1}</span><input type="text" data-dycname="${c.id}" data-k="dyc-${c.id}" data-keepv="1" value="${esc(c.name)}" placeholder="作業名稱，例：U2L2 單字 4 次" ${dis}>${ro?"":`<button type="button" class="tdx" data-dycdel="${c.id}" aria-label="刪除這項作業">×</button>`}</div>`).join("")||`<div class="sub">今天沒有要檢查的作業</div>`}</div>
       ${ro?"":`<div class="row"><button class="btn sm" data-dycadd="1">＋ 新增作業</button>${prevHw.length?`<button class="btn sm sky" data-dycprev="1">帶入上次的回家作業</button>`:""}</div>`}
     </section>
@@ -1872,6 +1878,8 @@ document.addEventListener("click",async e=>{const b=e.target.closest("button");i
     dy.checks=dy.checks.filter(x=>x!==c);dy.dirty=true;return render()}
   if(b.dataset.dycprev){const have=new Set(dy.checks.map(c=>c.name.trim()));const add=dyPrevHw(dy.cls,dy.date).filter(n=>!have.has(n));if(!add.length){toast("上次的回家作業都已經在清單裡了");return}
     add.forEach(n=>dy.checks.push({id:newKey(),name:n,nohw:[],itemId:null}));dy.dirty=true;toast(`已帶入 ${add.length} 項`);return render()}
+  if(b.dataset.dyrecmk){const title=b.dataset.dyrecmk,last=itemsOf(dy.cls).find(isRecS),nid=Store.newId("items");
+    await safe(()=>Store.set("items",nid,{cls:dy.cls,type:"recs",title,date:dy.date,results:{},full:100,pass:last?.pass??80,strict:!!last?.strict,noRetake:false,createdAt:Date.now(),createdBy:ME||null}),`已建立錄音評分「${title}」`);return render()}
   if(b.dataset.dyins){const f=b.dataset.dyins,cur=dy[f];dy[f]=(cur&&!cur.endsWith("\n")?cur+"\n":cur)+b.dataset.p;dy.dirty=true;render();
     const ta=$(dyTa[f]);if(ta){ta.focus();const n=ta.value.length;ta.setSelectionRange(n,n)}return}
   if(b.dataset.dycopy)return copy(dyText(dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy));
