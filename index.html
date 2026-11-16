@@ -67,6 +67,8 @@ button{cursor:pointer}
 .sync.busy i{background:var(--yellow)}
 .sync.local i{background:var(--orange)}
 .clsbar{display:flex;gap:8px;flex-wrap:wrap}
+.clsbreak{flex-basis:100%;height:0}
+.cls.spbtn{--c:var(--grape);--cs:var(--grape-s);border:2px dashed var(--grape)}
 .cls.sxbtn{--c:var(--sky);--cs:var(--sky-s);border:2px dashed var(--sky)}
 .sxrow{display:grid;gap:8px;align-items:center;padding:6px 0;border-bottom:2px dotted var(--line)}.sxrow>*{min-width:0}.sxrow input,.sxrow select{width:100%}
 .sxrow .nm{font-weight:800;font-size:17px}.sxhead{font-size:13px;font-weight:700;color:var(--muted);border-bottom:2px solid var(--line)}
@@ -455,6 +457,9 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .dycheck{display:flex;align-items:center;gap:8px}
 .dycheck input{flex:1;min-width:0}
 .dyci{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange-s);color:var(--orange);font-weight:800;font-size:13px;display:grid;place-items:center}
+.sprow{display:flex;flex-wrap:wrap;gap:6px}
+.spchip{border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer}
+.spchip b{color:var(--sky)}.spchip.ok{border-color:var(--mint);background:var(--mint-s)}.spchip:hover{border-color:var(--sky)}
 .impbox{background:var(--yellow-s);border-radius:16px;padding:14px}
 .impbox textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px}
 .dyrecmk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--yellow-s);border-radius:12px;padding:8px 12px;font-size:13.5px}
@@ -622,7 +627,7 @@ async function safe(fn,ok){try{inflight++;setSync();await fn();ok&&toast(ok)}cat
 /* ---------------- 渲染 ---------------- */
 function render(){
   const cl=classesList();if(!(S.cls==="__all"&&S.tab==="missing")&&(!S.cls||!cl.includes(S.cls)))S.cls=cl[0]||null;
-  $("#classes").innerHTML=!S.started?"":cl.length?cl.map(c=>`<button class="cls" style="${cv(clsColor(c))}" data-cls="${esc(c)}" aria-pressed="${c===S.cls&&!["care","done","school"].includes(S.tab)}">${esc(c)}<span class="ct">${studentsOf(c).length}</span></button>`).join("")+`<button class="cls carebtn" data-gocare="1" aria-pressed="${S.tab==="care"}">📋 通知安親老師${(()=>{const n=careGroups().length;return n?`<span class="ct">${n}</span>`:""})()}</button><button class="cls donebtn" data-godone="1" aria-pressed="${S.tab==="done"}">✅ 每日完成紀錄</button><button class="cls sxbtn" data-goschool="1" aria-pressed="${S.tab==="school"}">🏫 學校段考</button>`:`<div class="clsnone">還沒有班級，到「班級與學生」新增吧</div>`;
+  $("#classes").innerHTML=!S.started?"":cl.length?cl.map(c=>`<button class="cls" style="${cv(clsColor(c))}" data-cls="${esc(c)}" aria-pressed="${c===S.cls&&!["care","done","school","speak"].includes(S.tab)}">${esc(c)}<span class="ct">${studentsOf(c).length}</span></button>`).join("")+`<span class="clsbreak"></span><button class="cls carebtn" data-gocare="1" aria-pressed="${S.tab==="care"}">📋 通知安親老師${(()=>{const n=careGroups().length;return n?`<span class="ct">${n}</span>`:""})()}</button><button class="cls donebtn" data-godone="1" aria-pressed="${S.tab==="done"}">✅ 每日完成紀錄</button><button class="cls sxbtn" data-goschool="1" aria-pressed="${S.tab==="school"}">🏫 學校段考</button><button class="cls spbtn" data-gospeak="1" aria-pressed="${S.tab==="speak"}">🎙 Speaklens 錄音${(()=>{const n=S.students.reduce((a,st)=>a+itemsOf(st.cls).filter(i=>i.type==="speak"&&status(i,st.id).out).length,0);return n?`<span class="ct">${n}</span>`:""})()}</button>`:`<div class="clsnone">還沒有班級，到「班級與學生」新增吧</div>`;
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===S.tab));
   let total=0;(S.cls&&S.cls!=="__all"?studentsOf(S.cls):S.students).forEach(s=>total+=outstanding(s).length);{const k=$("#mkN"),n=(S.makeups||[]).filter(m=>!m.done&&(!S.cls||S.cls==="__all"||S.students.find(x=>x.id===m.sid)?.cls===S.cls)).length;k.hidden=!n;k.textContent=n}{const k=$("#agN");if(k){const ap=apptsAll(),t=todayStr(),n=ap.filter(a=>a.date<=t).length;k.hidden=!n;k.textContent=n}}const mn=$("#missN");mn.hidden=!total;mn.textContent=total;
   if(!S.started)return;
@@ -630,7 +635,7 @@ function render(){
   const v=$("#view");
   if(!S.ready.s||!S.ready.i){v.innerHTML=`<div class="card empty">載入資料中…</div>`;return}
   if(!$("#qa").hidden&&QA&&QA.startsWith("mk_"))setTimeout(drawQA);
-  v.innerHTML=({agenda:vAgenda,entry:vEntry,student:vStudent,missing:vMissing,records:vRecords,makeup:vMakeup,diary:vDiary,roster:vRoster,care:vCare,done:vDone,school:vSchool}[S.tab]||vEntry)();
+  v.innerHTML=({agenda:vAgenda,entry:vEntry,student:vStudent,missing:vMissing,records:vRecords,makeup:vMakeup,diary:vDiary,roster:vRoster,care:vCare,done:vDone,school:vSchool,speak:vSpeak}[S.tab]||vEntry)();
   if(keep){const el=v.querySelector(`[data-k="${CSS.escape(keep.k)}"]`);if(el){if(keep.ed)el.value=keep.v;el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
 }
 const emptyBox=(t,d,extra="")=>`<div class="card empty"><span class="blob"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.6 6.3L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.7z"/></svg></span><b>${t}</b>${d}${extra}</div>`;
@@ -1483,8 +1488,9 @@ document.addEventListener("click",async e=>{
   const g=e.target.closest("div[data-apgrp]");if(g&&!e.target.closest("button")){S.apOpen=S.apOpen||{};S.apOpen[g.dataset.apgrp]=!S.apOpen[g.dataset.apgrp];return render()}
   const b=e.target.closest("button");if(!b)return;
   if(b.dataset.tab){S.tab=b.dataset.tab;try{localStorage.setItem("gb.tab",S.tab)}catch(_){}return render()}
-  if(b.dataset.goschool){if(!["care","done","school"].includes(S.tab))S.prevTab=S.tab;S.tab="school";return render()}
-  if(b.dataset.gocare){if(!["care","done","school"].includes(S.tab))S.prevTab=S.tab;S.tab="care";return render()}
+  if(b.dataset.goschool){if(!["care","done","school","speak"].includes(S.tab))S.prevTab=S.tab;S.tab="school";return render()}
+  if(b.dataset.gospeak){if(!["care","done","school","speak"].includes(S.tab))S.prevTab=S.tab;S.tab="speak";return render()}
+  if(b.dataset.gocare){if(!["care","done","school","speak"].includes(S.tab))S.prevTab=S.tab;S.tab="care";return render()}
   if(b.dataset.sxid){S.sxId=b.dataset.sxid;S.sxEdit=null;return render()}
   if(b.dataset.sxmode){S.sxMode=b.dataset.sxmode;return render()}
   if(b.dataset.sxcls){S.sxCls=b.dataset.sxcls;return render()}
@@ -1493,7 +1499,7 @@ document.addEventListener("click",async e=>{
   if(b.dataset.sxout){sxOut(b.dataset.sxout);return}
   if(b.dataset.sxedit!==undefined){S.sxEdit=b.dataset.sxedit||null;return render()}
   if(b.dataset.sxdel){const x=S.sexams.find(e=>e.id===b.dataset.sxdel);if(x&&await ask(`刪除「${sxName(x)}」和裡面的成績？`))safe(()=>Store.update("sexams",x.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已刪除");return}
-  if(b.dataset.godone){if(!["care","done","school"].includes(S.tab))S.prevTab=S.tab;S.tab="done";return render()}
+  if(b.dataset.godone){if(!["care","done","school","speak"].includes(S.tab))S.prevTab=S.tab;S.tab="done";return render()}
   if(b.dataset.doneday){S.doneDay=b.dataset.doneday;return render()}
   if(b.dataset.donecat!==undefined){S.doneCat=S.doneCat===b.dataset.donecat?null:(b.dataset.donecat||null);return render()}
   if(b.dataset.donecls!==undefined){S.doneCls=b.dataset.donecls||null;return render()}
@@ -1503,7 +1509,7 @@ document.addEventListener("click",async e=>{
   if(b.dataset.jall){const sel=S.doneDay||todayStr(),l=doneEvents().filter(e=>dayOf(e.at)===sel&&(!S.doneCls||e.s.cls===S.doneCls)&&(!S.doneCat||e.cat===S.doneCat));const allOn=l.every(jDone);
     safe(async()=>{for(const e of l){const id=jid(e.key);if(allOn)await Store.del("jlog",id);else if(!jDone(e))await Store.set("jlog",id,{at:Date.now(),by:ME||null,key:e.key})}},allOn?"已全部取消":"已全部打勾");return}
   if(b.dataset.donecopy){return copy(doneText())}
-  if(b.dataset.cls){if(["care","done","school"].includes(S.tab))S.tab=S.prevTab||"entry";S.cls=b.dataset.cls;S.itemCat="";S.itemId=null;S.stuId=null;S.mkOpen=null;try{localStorage.setItem("gb.cls",S.cls)}catch(_){}return render()}
+  if(b.dataset.cls){if(["care","done","school","speak"].includes(S.tab))S.tab=S.prevTab||"entry";S.cls=b.dataset.cls;S.itemCat="";S.itemId=null;S.stuId=null;S.mkOpen=null;try{localStorage.setItem("gb.cls",S.cls)}catch(_){}return render()}
   if(b.hasAttribute("data-all")){S.cls=S.cls==="__all"?null:"__all";return render()}
   if(b.dataset.cat!==undefined&&b.classList.contains("cat")){S.itemCat=b.dataset.cat;S.itemId=null;try{localStorage.setItem("gb.cat",S.itemCat)}catch(_){}return render()}
   if(b.dataset.showdone){S.showDone=!S.showDone;return render()}
@@ -1922,13 +1928,14 @@ function impParse(text,cls){
   const units=head.map((t,k)=>({t,k,n:out.filter(r=>r.vals[k]!=null).length,item:exist.get(impNorm(t))||null}));
   return{units,rows:out,miss};
 }
+const impCls=()=>{const cl=classesList();return S.tab==="speak"?(cl.includes(S.spCls)?S.spCls:(cl.includes(S.cls)?S.cls:cl[0])):S.cls};
 function recImpHtml(){
-  if(S.readOnly)return "";const im=S.imp;
-  if(!im.open)return `<button class="btn sm" style="background:var(--yellow-s);color:var(--amber)" data-imp="open">📋 貼上匯入 Speaklens 成績</button>`;
-  const r=im.res,last=itemsOf(S.cls).find(i=>i.type==="speak")||itemsOf(S.cls).find(isRecS);
+  if(S.readOnly)return "";const im=S.imp,IC=impCls();
+  if(!im.open&&S.tab!=="speak")return `<button class="btn sm" style="background:var(--yellow-s);color:var(--amber)" data-imp="open">📋 貼上匯入 Speaklens 成績</button>`;
+  const r=im.res,last=itemsOf(IC).find(i=>i.type==="speak")||itemsOf(IC).find(isRecS);
   return `<div class="impbox stack">
-    <div class="row between"><b>📋 貼上匯入 Speaklens 成績</b><button class="btn sm" data-imp="close">關閉</button></div>
-    <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」；有幾題沒過寫在括號裡，例如 72(22)。匯入到目前選的班級 <b>${esc(S.cls)}</b>。</div>
+    <div class="row between"><b>📋 貼上匯入 Speaklens 成績</b>${S.tab==="speak"?"":`<button class="btn sm" data-imp="close">關閉</button>`}</div>
+    <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」；有幾題沒過寫在括號裡，例如 72(22)。${S.tab==="speak"?"":`匯入到目前選的班級 <b>${esc(IC)}</b>。`}</div>${S.tab==="speak"?`<label class="row sub">匯入到班級 <select id="impCls">${classesList().map(c=>`<option ${c===IC?"selected":""}>${esc(c)}</option>`).join("")}</select></label>`:""}
     <textarea id="impText" data-k="impText" data-keepv="1" rows="6" placeholder="姓名,Howdy 6 - U4,Howdy 6 - U5&#10;Samson,86,86&#10;Jerry,76,-">${esc(im.text)}</textarea>
     <div class="row"><input id="impPass" type="number" step="any" value="${esc(im.pass??last?.pass??80)}" class="grow" aria-label="及格分" placeholder="及格分"><input id="impDate" type="date" value="${esc(im.date||todayStr())}" class="grow" aria-label="日期"></div>
     <label class="chk"><input type="checkbox" id="impStrict" ${(im.strict??!!last?.strict)?"checked":""}> 每一題都要達標（不只看平均分數）</label>
@@ -1939,22 +1946,38 @@ function recImpHtml(){
       <button class="btn primary" data-imp="go">匯入勾選的單元</button></div>`:""}
   </div>`;
 }
-async function impGo(){const r=S.imp.res;if(!r||r.err)return;const pass=$("#impPass").value,strict=$("#impStrict").checked,date=$("#impDate").value||todayStr(),now=Date.now();
+async function impGo(){const r=S.imp.res,IC=impCls();if(!r||r.err)return;const pass=$("#impPass").value,strict=$("#impStrict").checked,date=$("#impDate").value||todayStr(),now=Date.now();
   const units=r.units.filter(u=>!S.imp.off[u.k]);if(!units.length)return toast("沒有勾選任何單元");
   inflight++;setSync();let nNew=0,nUp=0;
   try{for(const u of units){
       if(u.item){const flat={updatedAt:now,scoreUpdatedAt:now};r.rows.forEach(x=>{if(x.vals[u.k]!=null){flat[`results.${x.s.id}.sc`]=x.vals[u.k];flat[`results.${x.s.id}.wk`]=x.wks[u.k]}});await Store.update("items",u.item.id,flat);nUp++}
       else{const nid=Store.newId("items"),results={};r.rows.forEach(x=>{if(x.vals[u.k]!=null)results[x.s.id]={sc:x.vals[u.k],wk:x.wks[u.k]}});
-        await Store.set("items",nid,{cls:S.cls,type:"speak",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
-    S.imp={open:false,text:"",res:null,off:{}};toast(`匯入完成：新建 ${nNew} 項、更新 ${nUp} 項`);
+        await Store.set("items",nid,{cls:IC,type:"speak",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
+    S.imp={open:false,text:"",res:null,off:{}};toast(`${IC} 匯入完成：新建 ${nNew} 項、更新 ${nUp} 項`);
   }catch(e){writeErr(e)}finally{inflight--;setSync();render()}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-imp]");if(!b||S.readOnly)return;const a=b.dataset.imp,im=S.imp;
   const keep=()=>{const t=$("#impText");if(t)im.text=t.value;const p=$("#impPass");if(p)im.pass=p.value;const d=$("#impDate");if(d)im.date=d.value;const s=$("#impStrict");if(s)im.strict=s.checked};
   if(a==="open"){im.open=true;return render()}
   if(a==="close"){S.imp={open:false,text:"",res:null,off:{}};return render()}
-  if(a==="parse"){keep();im.res=impParse(im.text,S.cls);im.off={};if(im.res.units)im.res.units.forEach(u=>{if(!u.n)im.off[u.k]=true});return render()}
+  if(a==="parse"){keep();im.res=impParse(im.text,impCls());im.off={};if(im.res.units)im.res.units.forEach(u=>{if(!u.n)im.off[u.k]=true});return render()}
   if(a==="go"){keep();return impGo()}});
-document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.impu!=null){S.imp.off[t.dataset.impu]=!t.checked}});
+document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.impu!=null){S.imp.off[t.dataset.impu]=!t.checked}
+  if(t.id==="impCls"){S.spCls=t.value;S.imp.res=null;const x=$("#impText");if(x)S.imp.text=x.value;render()}
+  if(t.id==="spF"){S.spF=t.value;render()}});
+/* ================= Speaklens 總覽 ================= */
+function vSpeak(){const cl=classesList();if(!cl.length)return emptyBox("還沒有班級","");
+  const f=S.spF||"all",cls=f==="all"?cl:cl.filter(c=>c===f);let tot=0;
+  const secs=cls.map(c=>{const stus=studentsOf(c),its=itemsOf(c).filter(i=>i.type==="speak");if(!its.length)return f==="all"?"":`<section class="card"><h3>${esc(c)}</h3><div class="sub">還沒有 Speaklens 項目</div></section>`;
+    const rows=stus.map(s=>({s,o:its.filter(i=>status(i,s.id).out).map(i=>({i,l:status(i,s.id).l}))})).filter(x=>x.o.length);tot+=rows.length;
+    return `<section class="card stack"><div class="row between"><h3><span class="tag" style="${cv(clsColor(c))}">${esc(c)}</span> ${its.length} 個單元</h3><span class="sub">${rows.length?`${rows.length} 位還沒完成`:"全部完成 🎉"}</span></div>
+      <div class="sprow">${its.slice().reverse().map(i=>{const n=stus.filter(s=>!status(i,s.id).out).length;return `<button class="spchip ${n===stus.length?"ok":""}" data-goitem="${i.id}">${esc(i.title)} <b>${n}/${stus.length}</b>${i.strict?" ・逐題":""}</button>`}).join("")}</div>
+      ${rows.length?`<div>${rows.map(x=>`<div class="bookrow"><b style="min-width:110px">${esc(x.s.name)}</b><div class="row" style="gap:6px;flex:1">${x.o.map(o=>`<span class="pill p-${o.l.startsWith("未錄音")?"miss":"fail"}">${esc(o.i.title)}・${esc(o.l)}</span>`).join("")}</div></div>`).join("")}</div>`:""}
+    </section>`}).join("");
+  return `<div class="cols"><section class="card stack" style="align-self:start">${S.readOnly?`<h3>Speaklens 錄音</h3><div class="sub">只能查看</div>`:recImpHtml()}
+      <div class="sub">貼上格式範例：<br><code>姓名, Howdy 6 - U4, Howdy 6 - U5<br>Samson, 86, 72(22)<br>Jerry, 76, -</code></div></section>
+    <div class="stack" style="gap:18px"><section class="card row between"><div><h3 style="display:inline">Speaklens 錄音總覽</h3> <span class="sub">未錄音、未達標都會列出 · 點單元可以去登記分數</span></div>
+      <select id="spF" aria-label="篩選班級"><option value="all">全部班級</option>${cl.map(c=>`<option value="${esc(c)}" ${f===c?"selected":""}>${esc(c)}</option>`).join("")}</select></section>
+      ${secs||`<div class="empty">還沒有任何 Speaklens 項目，用左邊貼上匯入，或在「登記成績」新增 Speaklens</div>`}</div></div>`}
 document.addEventListener("input",e=>{if(e.target.id==="impText"){S.imp.text=e.target.value;S.imp.res=null;const pv=e.target.closest(".impbox")?.querySelector('[data-imp="go"]');if(pv)pv.disabled=true}});
 </script>
 </body>
