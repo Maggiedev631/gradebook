@@ -430,6 +430,26 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .login{max-width:440px;margin:40px auto;text-align:center;display:grid;gap:14px;justify-items:center}
 .gbtn{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:10px 22px;font-weight:700;font-size:15px}
 .gbtn:hover{border-color:var(--grape)}
+.dycols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.dycols{grid-template-columns:minmax(0,1fr)}}
+#dyProg,#dyHw{width:100%;line-height:1.7;min-height:0}
+.dychips{display:flex;flex-wrap:wrap;gap:6px}
+.dychip{border:1.5px dashed var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
+.dychip:hover{border-color:var(--yellow);color:var(--amber);background:var(--yellow-s)}
+.dylist{display:grid;gap:6px}
+.dyrow{display:grid;grid-template-columns:110px auto minmax(0,1fr);gap:10px;align-items:center;padding:6px 8px;border-radius:12px}
+.dyrow:nth-child(odd){background:var(--sunk)}
+.dynm{overflow-wrap:anywhere}
+.dynote{width:100%;padding:6px 10px!important;font-size:13.5px}
+@media (max-width:620px){.dyrow{grid-template-columns:minmax(0,1fr) auto}.dynote{grid-column:1/-1}}
+.dypre{white-space:pre-wrap;word-break:break-word;font-family:var(--f-body);font-size:14.5px;line-height:1.75;background:var(--yellow-s);border-radius:16px;padding:16px 18px;margin:0;color:var(--ink)}
+.dyhist{display:grid;gap:6px}
+.dyh{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;text-align:left;border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:8px 12px;cursor:pointer}
+.dyh:hover{border-color:var(--yellow)}
+.dyh.on{border-color:var(--yellow);background:var(--yellow-s)}
+.dyh span{color:var(--muted);font-size:13px;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dyh em{font-style:normal;font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px}
+.dyh em.abs{background:var(--amber-s);color:var(--amber)}.dyh em.miss{background:var(--red-s);color:var(--red)}
 </style>
 </head>
 <body>
@@ -449,6 +469,7 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
   <div class="navwrap" id="nav">
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="agenda" aria-selected="false"><span class="ic" style="background:var(--grape)">✓</span>待辦<span class="n" id="agN" hidden></span></button>
+      <button class="tab" role="tab" data-tab="diary" aria-selected="false"><span class="ic" style="background:var(--yellow)">✉</span>聯絡簿</button>
       <button class="tab" role="tab" data-tab="entry" aria-selected="true"><span class="ic" style="background:var(--pink)">✎</span>登記成績</button>
       <button class="tab" role="tab" data-tab="student" aria-selected="false"><span class="ic" style="background:var(--sky)">☺</span>學生查詢</button>
       <button class="tab" role="tab" data-tab="missing" aria-selected="false"><span class="ic" style="background:var(--orange)">!</span>未完成總表<span class="n" id="missN" hidden></span></button>
@@ -595,7 +616,7 @@ function render(){
   const v=$("#view");
   if(!S.ready.s||!S.ready.i){v.innerHTML=`<div class="card empty">載入資料中…</div>`;return}
   if(!$("#qa").hidden&&QA&&QA.startsWith("mk_"))setTimeout(drawQA);
-  v.innerHTML=({agenda:vAgenda,entry:vEntry,student:vStudent,missing:vMissing,records:vRecords,makeup:vMakeup,roster:vRoster,care:vCare,done:vDone,school:vSchool}[S.tab]||vEntry)();
+  v.innerHTML=({agenda:vAgenda,entry:vEntry,student:vStudent,missing:vMissing,records:vRecords,makeup:vMakeup,diary:vDiary,roster:vRoster,care:vCare,done:vDone,school:vSchool}[S.tab]||vEntry)();
   if(keep){const el=v.querySelector(`[data-k="${CSS.escape(keep.k)}"]`);if(el){if(keep.ed)el.value=keep.v;el.focus();try{el.setSelectionRange(keep.s,keep.e)}catch(e){}}}
 }
 const emptyBox=(t,d,extra="")=>`<div class="card empty"><span class="blob"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.6 6.3L21 9l-5 4.4L17.4 20 12 16.6 6.6 20 8 13.4 3 9l6.4-.7z"/></svg></span><b>${t}</b>${d}${extra}</div>`;
@@ -1046,12 +1067,12 @@ function vMakeup(){
      <div class="mkside">${m.done?`<span class="pill p-ok">已補課</span><span class="sub">補課日期</span>${dateField("mkdone-"+m.id,m.doneDate||"","",false)}`
        :`${mkProg(m).n?`<span class="pill p-abs">已補 ${mkProg(m).n}/${mkProg(m).lines.length}</span>`:`<span class="pill p-miss">未補課</span>`}<span class="sub">預計補課${m.planTime?" "+esc(m.planTime):""}</span>${dateField("mkplan-"+m.id,m.planDate||"","",true)}${ro?"":`<button class="btn sm" data-appt="mk_${m.id}|${m.sid}">約時間</button>`}`}
      ${ro?"":`<div class="row" style="gap:4px;justify-content:flex-end">${m.done?`<button class="btn sm" data-mkundo="${m.id}">改回未補</button>`:`<button class="btn sm mint" data-mkdone="${m.id}">全部補完了</button>`}<button class="btn sm danger" data-mkdel2="${m.id}">刪除</button></div>`}</div></div>`).join("");
-  const todo=all.filter(m=>!m.done).length;
+  const todo=all.filter(m=>!m.done).length,mkD=diaryOf(S.cls,todayStr()),mkAuto=mkD?dyMkContent(dyFromDoc(S.cls,todayStr(),mkD)):"";
   return `<div class="cols"><section class="card stack"><h3>登記缺課</h3>
     ${ro?`<div class="sub">沒有編輯權限</div>`:stus.length?`<form id="mkNew" class="stack" autocomplete="off">
       <label class="label" for="mkStu">學生</label><select id="mkStu" required>${stus.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}</select>
       <span class="label">缺課日期</span>${dateField("mkMiss",todayStr())}
-      <label class="label" for="mkContent">缺課內容</label><textarea id="mkContent" data-k="mkContent" data-keepv="1" rows="5" placeholder="例：Unit 3 Lesson 2、課本 p.24-26、習作第 5 頁，可以分多行寫"></textarea>
+      <label class="label" for="mkContent">缺課內容</label><textarea id="mkContent" data-k="mkContent" data-keepv="1" rows="5" placeholder="例：Unit 3 Lesson 2、課本 p.24-26、習作第 5 頁，可以分多行寫" data-auto="${esc(mkAuto)}">${esc(mkAuto)}</textarea><div class="sub" id="mkHint">${mkAuto?"已從聯絡簿帶入當天上課進度，可以再修改":"選缺課日期後，當天有寫聯絡簿就會自動帶入"}</div>
       <span class="label">預計補課日期（可空白）</span>${dateField("mkPlan","","",true)}
       <label class="label" for="mkNote">備註（可空白）</label><textarea id="mkNote" data-k="mkNote" data-keepv="1" rows="3" placeholder="例：請家長週三 5 點帶來"></textarea>
       <button class="btn primary" type="submit">新增補課</button></form>`:`<div class="sub">這個班級還沒有學生</div>`}</section>
@@ -1094,7 +1115,7 @@ const BK_KEEP=14,BK_CHUNK=60000;
 async function loadBackups(){try{const d=await Store.getAll("backups");const by={};d.forEach(x=>{(by[x.date]=by[x.date]||[]).push(x)});
   S.backups=Object.entries(by).map(([date,parts])=>({date,parts:parts.sort((a,b)=>a.part-b.part),at:parts[0].at,students:parts[0].nS,items:parts[0].nI,complete:parts.length===parts[0].total})).sort((a,b)=>b.date.localeCompare(a.date));}catch(_){S.backups=S.backups||[]}}
 async function writeBackup(date){
-  const json=JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM,todos:S.todos,sexams:S.sexams,jlog:S.jlog});const n=Math.max(1,Math.ceil(json.length/BK_CHUNK)),at=Date.now();
+  const json=JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM,todos:S.todos,sexams:S.sexams,jlog:S.jlog,diary:S.allD||[]});const n=Math.max(1,Math.ceil(json.length/BK_CHUNK)),at=Date.now();
   for(let i=0;i<n;i++)await Store.set("backups",`${date}_${i}`,{date,part:i,total:n,json:json.slice(i*BK_CHUNK,(i+1)*BK_CHUNK),at,by:ME||null,nS:S.allS.filter(x=>!x.deleted).length,nI:S.allI.filter(x=>!x.deleted).length});
 }
 async function pruneBackups(){const old=(S.backups||[]).slice(BK_KEEP);for(const b of old)for(const p of b.parts)await Store.del("backups",p.id)}
@@ -1553,7 +1574,7 @@ document.addEventListener("click",async e=>{
     safe(async()=>{for(const s of ss)await Store.update("students",s.id,{cls:to});for(const i of is)await Store.update("items",i.id,{cls:to})},`已改名為 ${to}`);return}
   if(b.id==="dlCsv")return download(`${S.cls}_成績表.csv`,csvFor(S.cls),"text/csv;charset=utf-8");
   if(b.id==="dlRec")return download(`考試紀錄_${todayStr()}.csv`,recordsCsv(),"text/csv;charset=utf-8");
-  if(b.id==="dlJson")return download(`登記簿備份_${todayStr()}.json`,JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM,todos:S.todos,sexams:S.sexams,jlog:S.jlog},null,1),"application/json");
+  if(b.id==="dlJson")return download(`登記簿備份_${todayStr()}.json`,JSON.stringify({students:S.allS,items:S.allI,makeups:S.allM,todos:S.todos,sexams:S.sexams,jlog:S.jlog,diary:S.allD||[]},null,1),"application/json");
 });
 document.addEventListener("input",e=>{
   const t=e.target;
@@ -1640,10 +1661,10 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
 /* ---------------- 匯入備份 ---------------- */
 async function importBackup(file){
   let data;try{data=JSON.parse(await file.text())}catch(_){toast("檔案格式不正確");return}
-  const st=data.students||[],it=data.items||[],mk=data.makeups||[],td=data.todos||[],sx=data.sexams||[],jl=data.jlog||[];if(!st.length&&!it.length){toast("備份檔裡沒有資料");return}
+  const st=data.students||[],it=data.items||[],mk=data.makeups||[],td=data.todos||[],sx=data.sexams||[],jl=data.jlog||[],dy=data.diary||[];if(!st.length&&!it.length){toast("備份檔裡沒有資料");return}
   if(!await ask(`匯入 ${st.length} 位學生、${it.length} 個評量、${mk.length} 筆補課？相同的資料會被覆蓋。`,"確定匯入"))return;
   const strip=o=>{const{id,...rest}=o;return rest};
-  safe(async()=>{const all=[...st.map(x=>["students",x]),...it.map(x=>["items",x]),...mk.map(x=>["makeups",x]),...td.map(x=>["todos",x]),...sx.map(x=>["sexams",x]),...jl.map(x=>["jlog",x])];
+  safe(async()=>{const all=[...st.map(x=>["students",x]),...it.map(x=>["items",x]),...mk.map(x=>["makeups",x]),...td.map(x=>["todos",x]),...sx.map(x=>["sexams",x]),...jl.map(x=>["jlog",x]),...dy.map(x=>["diary",x])];
     for(let i=0;i<all.length;i+=400){const batch=fs.batch();all.slice(i,i+400).forEach(([c,x])=>batch.set(fs.collection(c).doc(x.id),strip(x)));await batch.commit()}},"匯入完成");
 }
 
@@ -1658,10 +1679,11 @@ function start(){
   unsubs.push(Store.listen("sexams",d=>{S.sexams=d;render()},()=>{}));
   unsubs.push(Store.listen("jlog",d=>{S.jlog=d;render()},()=>{}));
   unsubs.push(Store.listen("makeups",d=>{S.allM=d;S.makeups=d.filter(x=>!x.deleted);render()},()=>{}));
+  unsubs.push(Store.listen("diary",d=>{S.allD=d;S.diary=d.filter(x=>!x.deleted);render()},()=>{}));
   unsubs.push(Store.listen("teachers",d=>{d.forEach(t=>NAMES[t.id]=t.name||t.email||"老師");render()},()=>{}));
 }
 function showLogin(){
-  S.started=false;unsubs.forEach(u=>u&&u());unsubs=[];S.students=[];S.items=[];S.allS=[];S.allI=[];S.allM=[];S.makeups=[];S.todos=[];S.sexams=[];S.jlog=[];$("#nav").hidden=true;$("#classes").innerHTML="";
+  S.started=false;unsubs.forEach(u=>u&&u());unsubs=[];S.students=[];S.items=[];S.allS=[];S.allI=[];S.allM=[];S.makeups=[];S.todos=[];S.sexams=[];S.jlog=[];S.diary=[];S.allD=[];S.dyDrafts={};$("#nav").hidden=true;$("#classes").innerHTML="";
   $("#view").innerHTML=`<div class="card login"><div class="abc" aria-hidden="true"><span>A</span><span>B</span><span>C</span></div>
     <h2>老師登入</h2><div class="sub">用 Gmail 登入後，就能查看和登記所有班級的資料。</div>${inAppNotice()}
     <button class="gbtn" id="gLogin"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>用 Google 帳號登入</button></div>`;
@@ -1681,6 +1703,130 @@ else{
     else{ME=null;$("#me").textContent="";$("#logout").hidden=true;showLogin()}
   });
 }
+</script>
+<script>
+/* ================= 聯絡簿 ================= */
+S.diary=[];S.dyDrafts={};S.dyShowNo=true;
+try{S.dyShowNo=localStorage.getItem("gb.dyno")!=="0"}catch(_){}
+const DY_PROG=["課本 Student Book p.","習作 Workbook p.","單字 Vocabulary：","句型 Sentence Patterns：","文法 Grammar：","自然發音 Phonics：","閱讀 Reading：","歌曲 Song：","小考 Quiz："];
+const DY_HW=["習作 Workbook p.","背單字 Memorize vocabulary：","錄音 Recording：","抄寫 Copy：","朗讀 Read aloud：","複習 Review：","準備小考 Prepare for quiz：","家長簽名 Parent's signature"];
+const dyId=(c,d)=>"d"+String(d).replace(/-/g,"")+"_"+hash(c).toString(36);
+const diaryOf=(c,d)=>(S.diary||[]).find(x=>x.cls===c&&x.date===d&&!x.deleted);
+const dyLines=t=>String(t||"").split("\n").map(x=>x.trim()).filter(Boolean);
+const dyNum=t=>{const l=dyLines(t);return l.length?l.map((x,i)=>`${i+1}. ${x.replace(/^\d+\s*[.、)）]\s*/,"")}`).join("\n"):"1. "};
+function dyFromDoc(c,d,doc){return{key:c+"|"+d,cls:c,date:d,prog:doc?.prog||"",hw:doc?.hw||"",absent:[...(doc?.absent||[])],nohw:[...(doc?.nohw||[])],notes:{...(doc?.notes||{})},dirty:false,savedAt:doc?.updatedAt||0,exists:!!doc,by:doc?.by||null}}
+function dyLoad(){const c=S.cls,d=S.dyDate||todayStr(),key=c+"|"+d,doc=diaryOf(c,d);let dr=S.dyDrafts[key];
+  if(!dr||(!dr.dirty&&dr.savedAt!==(doc?.updatedAt||0)))dr=S.dyDrafts[key]=dyFromDoc(c,d,doc);S.dy=dr;return dr}
+function dyText(dy,sid){
+  const out=["親愛的家長您好：","Dear Parents,","","🔺今日上課進度 Today's Lesson：",dyNum(dy.prog),"","🔺回家作業 Homework：",dyNum(dy.hw)];
+  if(sid){const s=S.students.find(x=>x.id===sid);const nm=s?s.name:"",ex=[];
+    if(dy.absent.includes(sid))ex.push(`${nm} 今天請假，老師會再安排補課。`,`${nm} was absent today. A make-up lesson will be arranged.`);
+    if(dy.nohw.includes(sid))ex.push(`${nm} 今天作業未交，麻煩協助叮嚀補交。`,`${nm} did not hand in today's homework. Please help make sure it gets done.`);
+    if((dy.notes[sid]||"").trim())ex.push(dy.notes[sid].trim());
+    if(ex.length)out.push("","🔺個別提醒 Note：",...ex);
+  }else if(S.dyShowNo&&dy.nohw.length){const nms=studentsOf(dy.cls).filter(s=>dy.nohw.includes(s.id)).map(s=>s.name);if(nms.length)out.push("","🔺未交作業 Missing Homework：",nms.join("、"))}
+  out.push("","麻煩家長協助叮嚀，謝謝！","Please kindly remind your child. Thank you!");
+  return out.join("\n");
+}
+function dyStat(dy){return dy.dirty?`<span class="pill p-miss">尚未儲存</span>`:dy.exists?`<span class="pill p-ok">已儲存${dy.savedAt?" · "+esc(fmtTs(dy.savedAt).slice(5)):""}${dy.by?" · "+esc(who(dy.by)):""}</span>`:`<span class="pill" style="background:var(--sunk);color:var(--muted)">這天還沒寫</span>`}
+function dyChips(field){return `<div class="dychips">${(field==="prog"?DY_PROG:DY_HW).map(p=>`<button type="button" class="dychip" data-dyins="${field}" data-p="${esc(p)}">＋ ${esc(p)}</button>`).join("")}</div>`}
+function vDiary(){
+  if(!S.cls||S.cls==="__all")return emptyBox("先選一個班級","上方點選班級後，就能寫這班的聯絡簿。");
+  const dy=dyLoad(),ro=S.readOnly,stus=studentsOf(S.cls),dis=ro?"disabled":"";
+  const flagged=stus.filter(s=>dy.absent.includes(s.id)||dy.nohw.includes(s.id)||(dy.notes[s.id]||"").trim());
+  const hist=(S.diary||[]).filter(x=>x.cls===S.cls&&!x.deleted).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,14);
+  const drafts=Object.values(S.dyDrafts).filter(x=>x.dirty&&x.key!==dy.key&&x.cls===S.cls);
+  return `<div class="dycols"><div class="stack" style="gap:18px">
+    <section class="card stack">
+      <div class="row between"><div class="row"><button class="btn sm" data-dynav="-1" aria-label="前一天">‹</button>${dateField("dyDate",dy.date)}<button class="btn sm" data-dynav="1" aria-label="後一天">›</button>${dy.date!==todayStr()?`<button class="btn sm" data-dyday="${todayStr()}">今天</button>`:""}</div><span id="dyStat">${dyStat(dy)}</span></div>
+      ${drafts.length?`<div class="sub" style="color:var(--red)">還有未儲存的聯絡簿：${drafts.map(x=>`<button class="linkbtn" data-dyday="${x.date}">${esc(md(x.date))}</button>`).join("、")}</div>`:""}
+      <label class="label" for="dyProg">🔺今日上課進度（一行一項）</label>
+      <textarea id="dyProg" data-k="dyProg" data-keepv="1" rows="5" ${dis} placeholder="例：Unit 3 Lesson 2&#10;課本 Student Book p.24-26">${esc(dy.prog)}</textarea>
+      ${ro?"":dyChips("prog")}
+      <label class="label" for="dyHw">🔺回家作業（一行一項）</label>
+      <textarea id="dyHw" data-k="dyHw" data-keepv="1" rows="4" ${dis} placeholder="例：習作 Workbook p.12-13&#10;錄音 Recording：Unit 3 課文">${esc(dy.hw)}</textarea>
+      ${ro?"":dyChips("hw")}
+    </section>
+    <section class="card stack">
+      <div class="row between"><h3>學生狀況與個別備註</h3><span class="sub">${stus.length} 位</span></div>
+      <div class="sub">點「請假」會自動建立補課（內容帶入今天進度）；點「未交作業」會自動列進未完成總表和學生查詢。</div>
+      ${stus.length?`<div class="dylist">${stus.map(s=>{const a=dy.absent.includes(s.id),n=dy.nohw.includes(s.id);return `<div class="dyrow"><b class="dynm">${esc(s.name)}</b>
+        <div class="seg"><button class="abs" data-dyabs="${s.id}" aria-pressed="${a}" ${dis}>請假</button><button class="miss" data-dynohw="${s.id}" aria-pressed="${n}" ${dis}>未交作業</button></div>
+        <input type="text" class="dynote" data-dynote="${s.id}" data-k="dyn-${s.id}" data-keepv="1" value="${esc(dy.notes[s.id]||"")}" placeholder="個別備註（可空白）" ${dis}></div>`}).join("")}</div>`:`<div class="empty">這個班級還沒有學生</div>`}
+      ${ro?"":`<div class="row" style="justify-content:flex-end"><button class="btn primary" id="dySave">儲存聯絡簿</button></div>`}
+    </section></div>
+  <div class="stack" style="gap:18px">
+    <section class="card stack">
+      <div class="row between"><h3>全班訊息</h3><button class="btn primary sm" data-dycopy="all">複製文字</button></div>
+      <label class="row sub" style="cursor:pointer"><input type="checkbox" id="dyShowNo" ${S.dyShowNo?"checked":""}> 附上未交作業名單</label>
+      <pre class="dypre" id="dyPre">${esc(dyText(dy))}</pre>
+    </section>
+    <section class="card stack">
+      <div class="row between"><h3>個別訊息</h3><span class="sub">${flagged.length} 位</span></div>
+      <div class="sub">有請假、未交作業或個別備註的學生，會在全班訊息後面加上他的提醒。</div>
+      <div id="dyInd">${dyIndHtml(dy,flagged)}</div>
+    </section>
+    <section class="card stack"><h3>最近的聯絡簿</h3>
+      ${hist.length?`<div class="dyhist">${hist.map(x=>`<button class="dyh ${x.date===dy.date?"on":""}" data-dyday="${x.date}"><b>${esc(fmtD(x.date))}</b><span>${esc(dyLines(x.prog)[0]||"（未填進度）")}</span>${(x.absent||[]).length?`<em class="abs">請假 ${(x.absent||[]).length}</em>`:""}${(x.nohw||[]).length?`<em class="miss">未交 ${(x.nohw||[]).length}</em>`:""}</button>`).join("")}</div>`:`<div class="sub">這班還沒有聯絡簿紀錄</div>`}
+    </section></div></div>`;
+}
+function dyIndHtml(dy,flagged){if(!flagged.length)return `<div class="sub">目前沒有</div>`;
+  return flagged.map(s=>`<div class="bookrow"><div><b>${esc(s.name)}</b> ${dy.absent.includes(s.id)?`<span class="pill p-abs">請假</span>`:""} ${dy.nohw.includes(s.id)?`<span class="pill p-miss">未交作業</span>`:""}${(dy.notes[s.id]||"").trim()?`<div class="sub">${esc(dy.notes[s.id])}</div>`:""}</div><button class="btn sm sky" data-dycopy="${s.id}">複製</button></div>`).join("")}
+function dyLive(){const dy=S.dy;if(!dy)return;const p=$("#dyPre");if(p)p.textContent=dyText(dy);const st=$("#dyStat");if(st)st.innerHTML=dyStat(dy);
+  const ind=$("#dyInd");if(ind){const fl=studentsOf(dy.cls).filter(s=>dy.absent.includes(s.id)||dy.nohw.includes(s.id)||(dy.notes[s.id]||"").trim());ind.innerHTML=dyIndHtml(dy,fl)}}
+function dyMkContent(dy){return [...dyLines(dy.prog),...dyLines(dy.hw).map(x=>"回家作業："+x)].join("\n")}
+async function dySave(){
+  const dy=S.dy;if(!dy||S.readOnly)return;const id=dyId(dy.cls,dy.date),old=diaryOf(dy.cls,dy.date)||{},stus=studentsOf(dy.cls),ids=new Set(stus.map(s=>s.id));
+  const absent=dy.absent.filter(x=>ids.has(x)),nohw=dy.nohw.filter(x=>ids.has(x)),notes={};Object.entries(dy.notes).forEach(([k,v])=>{if(ids.has(k)&&String(v).trim())notes[k]=String(v).trim()});
+  const now=Date.now(),base={cls:dy.cls,date:dy.date,prog:dy.prog.trim(),hw:dy.hw.trim(),absent,nohw,notes,updatedAt:now,by:ME||null,createdAt:old.createdAt||now,createdBy:old.createdBy||ME||null};
+  inflight++;setSync();
+  try{
+    await Store.set("diary",id,{...base,mkIds:old.mkIds||{},hwItemId:old.hwItemId||null});
+    const mkIds={...(old.mkIds||{})},content=dyMkContent(dy);let nMk=0;
+    for(const sid of absent){const m=(S.allM||[]).find(x=>x.id===mkIds[sid]);
+      if(m&&!m.deleted){if(!m.done&&!(m.progDone||[]).length&&m.content!==content)await Store.update("makeups",m.id,{content})}
+      else{const nid=Store.newId("makeups");await Store.set("makeups",nid,{sid,cls:dy.cls,missDate:dy.date,content,planDate:"",note:"由聯絡簿自動建立",done:false,fromDiary:id,createdAt:now,createdBy:ME||null});mkIds[sid]=nid;nMk++}}
+    for(const sid of Object.keys(mkIds))if(!absent.includes(sid)){const m=(S.allM||[]).find(x=>x.id===mkIds[sid]);
+      if(m&&!m.deleted&&!m.done&&!(m.progDone||[]).length)await Store.update("makeups",m.id,{deleted:true,deletedAt:now,deletedBy:ME||null});delete mkIds[sid]}
+    let hwItemId=old.hwItemId||null;const item=hwItemId&&(S.allI||[]).find(i=>i.id===hwItemId&&!i.deleted),title="聯絡簿作業 "+md(dy.date);
+    if(!item&&nohw.length){const nid=Store.newId("items"),results={};stus.forEach(s=>results[s.id]={st:nohw.includes(s.id)?"":"done"});
+      await Store.set("items",nid,{cls:dy.cls,type:"hw",title,date:dy.date,results,fromDiary:id,createdAt:now,createdBy:ME||null});hwItemId=nid}
+    else if(item){const prev=new Set(old.nohw||[]),flat={updatedAt:now};stus.forEach(s=>{const on=nohw.includes(s.id),was=prev.has(s.id),r=(item.results||{})[s.id];
+        if(on&&!was)flat[`results.${s.id}.st`]="";else if(!on&&was)flat[`results.${s.id}.st`]="done";else if(!r)flat[`results.${s.id}.st`]=on?"":"done"});
+      await Store.update("items",item.id,flat)}
+    await Store.update("diary",id,{mkIds,hwItemId:hwItemId||null});
+    dy.dirty=false;delete S.dyDrafts[dy.key];
+    toast("已儲存聯絡簿"+(nMk?`，新增 ${nMk} 筆補課`:""));
+  }catch(e){
+    if(e&&e.code==="permission-denied")notice(`<b>聯絡簿還不能儲存。</b>Firebase 規則需要開放新的「diary」集合，寫法跟 makeups 一樣，把 <code>diary</code> 加進規則後再按一次儲存。`);
+    else writeErr(e);
+  }finally{inflight--;setSync();render()}
+}
+/* 補課表單：選缺課日期時自動帶入聯絡簿進度 */
+function mkAutoFill(){const ta=$("#mkContent"),dv=$("#mkMiss");if(!ta||!dv)return;const d=diaryOf(S.cls,dv.value),cur=ta.value.trim(),wasAuto=ta.dataset.auto&&cur===ta.dataset.auto.trim(),h=$("#mkHint");
+  if(d&&(!cur||wasAuto)){const c=dyMkContent(dyFromDoc(S.cls,dv.value,d));ta.value=c;ta.dataset.auto=c;if(h)h.textContent="已從聯絡簿帶入當天上課進度，可以再修改"}
+  else if(!d&&wasAuto){ta.value="";ta.dataset.auto="";if(h)h.textContent="這天沒有聯絡簿，請手動填寫"}}
+document.addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.dynav){const d=new Date((S.dyDate||todayStr())+"T00:00");d.setDate(d.getDate()+Number(b.dataset.dynav));S.dyDate=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;return render()}
+  if(b.dataset.dyday){S.dyDate=b.dataset.dyday;window.scrollTo({top:0,behavior:"smooth"});return render()}
+  if(b.dataset.dyabs||b.dataset.dynohw){if(S.readOnly||!S.dy)return;const k=b.dataset.dyabs?"absent":"nohw",sid=b.dataset.dyabs||b.dataset.dynohw,l=S.dy[k];
+    S.dy[k]=l.includes(sid)?l.filter(x=>x!==sid):[...l,sid];S.dy.dirty=true;return render()}
+  if(b.dataset.dyins){if(S.readOnly||!S.dy)return;const f=b.dataset.dyins,cur=S.dy[f];S.dy[f]=(cur&&!cur.endsWith("\n")?cur+"\n":cur)+b.dataset.p;S.dy.dirty=true;render();
+    const ta=$(f==="prog"?"#dyProg":"#dyHw");if(ta){ta.focus();const n=ta.value.length;ta.setSelectionRange(n,n)}return}
+  if(b.dataset.dycopy){if(!S.dy)return;return copy(dyText(S.dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy))}
+  if(b.id==="dySave")return dySave();
+});
+document.addEventListener("input",e=>{const t=e.target;if(!S.dy||S.tab!=="diary")return;
+  if(t.id==="dyProg"){S.dy.prog=t.value;S.dy.dirty=true;dyLive()}
+  else if(t.id==="dyHw"){S.dy.hw=t.value;S.dy.dirty=true;dyLive()}
+  else if(t.dataset&&t.dataset.dynote){S.dy.notes[t.dataset.dynote]=t.value;S.dy.dirty=true;dyLive()}
+});
+document.addEventListener("change",e=>{const t=e.target;
+  if(t.id==="dyDate"){if(t.value){S.dyDate=t.value;render()}return}
+  if(t.id==="dyShowNo"){S.dyShowNo=t.checked;try{localStorage.setItem("gb.dyno",t.checked?"1":"0")}catch(_){}dyLive();return}
+  if(t.id==="mkMiss")mkAutoFill();
+});
+window.addEventListener("beforeunload",e=>{if(Object.values(S.dyDrafts||{}).some(x=>x.dirty)){e.preventDefault();e.returnValue=""}});
 </script>
 </body>
 </html>
