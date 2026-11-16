@@ -455,6 +455,8 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .dycheck{display:flex;align-items:center;gap:8px}
 .dycheck input{flex:1;min-width:0}
 .dyci{flex:none;width:24px;height:24px;border-radius:50%;background:var(--orange-s);color:var(--orange);font-weight:800;font-size:13px;display:grid;place-items:center}
+.impbox{background:var(--yellow-s);border-radius:16px;padding:14px}
+.impbox textarea{font-family:ui-monospace,Menlo,monospace;font-size:13px}
 .dyrecmk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;background:var(--yellow-s);border-radius:12px;padding:8px 12px;font-size:13.5px}
 .score.wk{width:100px;font-size:14px}
 .dyrow .seg button.miss{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -665,7 +667,7 @@ function vEntry(){
       <button class="btn primary" type="submit">新增到 ${esc(S.cls)}</button></form></details>`;
   const item=items.find(i=>i.id===S.itemId);
   return statsHtml(S.cls)+`<div class="cols">
-    <section class="card stack">${form}${form?`<div style="border-top:2px dashed var(--line)"></div>`:""}<div class="row between"><h3>評量項目</h3><span class="sub">${items.length} 項</span></div>${catBar}<div class="items">${list||`<div class="sub" style="padding:4px">${doneItems.length?"全部都完成了 🎉":"還沒有評量項目"}</div>`}</div>${doneItems.length?`<button class="btn sm" data-showdone="1" style="width:100%">${S.showDone?`收起已完成的 ${doneItems.length} 項`:`✓ 已完成 ${doneItems.length} 項（已收起，點這裡顯示）`}</button>`:""}</section>
+    <section class="card stack">${form}${recImpHtml()}${form?`<div style="border-top:2px dashed var(--line)"></div>`:""}<div class="row between"><h3>評量項目</h3><span class="sub">${items.length} 項</span></div>${catBar}<div class="items">${list||`<div class="sub" style="padding:4px">${doneItems.length?"全部都完成了 🎉":"還沒有評量項目"}</div>`}</div>${doneItems.length?`<button class="btn sm" data-showdone="1" style="width:100%">${S.showDone?`收起已完成的 ${doneItems.length} 項`:`✓ 已完成 ${doneItems.length} 項（已收起，點這裡顯示）`}</button>`:""}</section>
     <section class="card stack">${item?gridHtml(item,stus):`<div class="empty"><b>選一個評量開始登記</b>左側新增小考、段考或錄音作業。</div>`}</section></div>`;
 }
 function editItemHtml(item){const kind=kindOf(item),opts=TYPES.filter(t=>t[0]==="other"||t[2]===kind);if(!opts.find(t=>t[0]===item.type))opts.unshift([item.type,TYPE[item.type]?.label||item.type,kind,TYPE[item.type]?.color||"grape"]);
@@ -1898,6 +1900,62 @@ document.addEventListener("change",e=>{const t=e.target;
   if(t.id==="mkMiss")mkAutoFill();
 });
 window.addEventListener("beforeunload",e=>{if(Object.values(S.dyDrafts||{}).some(x=>x.dirty)){e.preventDefault();e.returnValue=""}});
+</script>
+<script>
+/* ================= 貼上匯入錄音成績 ================= */
+S.imp={open:false,text:"",res:null,off:{}};
+const impNorm=t=>String(t||"").toLowerCase().replace(/[\s\-_–—．.・]/g,"");
+const impTitle=t=>String(t||"").trim().replace(/\s+/g," ").replace(/howdy\s*(\d+)\s*[-–—]?\s*u\s*(\d+)/i,(m,a,b)=>`Howdy ${a} - U${b}`);
+function impParse(text,cls){
+  const rows=String(text||"").split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>l.split(/\t|,|，|\s{2,}/).map(c=>c.trim()));
+  if(rows.length<2)return{err:"至少要有一行標題（單元名稱）和一行學生成績"};
+  const head=rows[0].filter(c=>c&&!/^(#|no\.?|編號|座號)$/i.test(c)&&!/student|name|姓名|學生/i.test(c)).map(impTitle);
+  if(!head.length)return{err:"第一行要放單元名稱，例如：姓名、Howdy 6 - U4、Howdy 6 - U5"};
+  const stus=studentsOf(cls),out=[],miss=[];
+  rows.slice(1).forEach(r=>{let c=r.filter(x=>x!=="");if(c.length>head.length+1&&/^\d+$/.test(c[0]))c=c.slice(1);
+    const name=c[0];if(!name)return;const vals=head.map((_,k)=>{const v=(c[k+1]||"").replace(/分$/,"");return /^\d+(\.\d+)?$/.test(v)?Number(v):null});
+    const n=impNorm(name),eng=impNorm((name.match(/[A-Za-z][A-Za-z\s.'-]*/)||[""])[0]),zh=impNorm(name.replace(/[A-Za-z\s.'-]/g,""));
+    let m=stus.filter(s=>impNorm(s.name)===n);
+    if(m.length!==1)m=stus.filter(s=>{const sn=impNorm(s.name);return sn&&(n.includes(sn)||sn.includes(n)||(eng&&sn===eng)||(zh&&zh.length>=2&&sn.includes(zh)))});
+    if(m.length===1)out.push({name,s:m[0],vals});else miss.push(name)});
+  const exist=new Map(itemsOf(cls).filter(isRecS).map(i=>[impNorm(i.title),i]));
+  const units=head.map((t,k)=>({t,k,n:out.filter(r=>r.vals[k]!=null).length,item:exist.get(impNorm(t))||null}));
+  return{units,rows:out,miss};
+}
+function recImpHtml(){
+  if(S.readOnly)return "";const im=S.imp;
+  if(!im.open)return `<button class="btn sm" style="background:var(--yellow-s);color:var(--amber)" data-imp="open">📋 貼上匯入錄音成績</button>`;
+  const r=im.res,last=itemsOf(S.cls).find(isRecS);
+  return `<div class="impbox stack">
+    <div class="row between"><b>📋 貼上匯入錄音成績</b><button class="btn sm" data-imp="close">關閉</button></div>
+    <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」。匯入到目前選的班級 <b>${esc(S.cls)}</b>。</div>
+    <textarea id="impText" data-k="impText" data-keepv="1" rows="6" placeholder="姓名,Howdy 6 - U4,Howdy 6 - U5&#10;Samson,86,86&#10;Jerry,76,-">${esc(im.text)}</textarea>
+    <div class="row"><input id="impPass" type="number" step="any" value="${esc(im.pass??last?.pass??80)}" class="grow" aria-label="及格分" placeholder="及格分"><input id="impDate" type="date" value="${esc(im.date||todayStr())}" class="grow" aria-label="日期"></div>
+    <label class="chk"><input type="checkbox" id="impStrict" ${(im.strict??!!last?.strict)?"checked":""}> 每一題都要達標（不只看平均分數）</label>
+    <button class="btn sky" data-imp="parse">預覽</button>
+    ${r?r.err?`<div class="sub" style="color:var(--red)">${esc(r.err)}</div>`:`<div class="stack" style="gap:6px">
+      <div class="sub">對到 ${r.rows.length} 位學生${r.miss.length?`，<b style="color:var(--red)">對不到：${esc(r.miss.join("、"))}</b>（這些人不會匯入）`:""}</div>
+      ${r.units.map(u=>`<label class="chk"><input type="checkbox" data-impu="${u.k}" ${im.off[u.k]?"":"checked"}> <b>${esc(u.t)}</b> <span class="sub">${u.n} 人有分數${u.item?" · 更新現有項目":" · 新建項目"}${u.n?"":" · 沒人錄，建議不勾"}</span></label>`).join("")}
+      <button class="btn primary" data-imp="go">匯入勾選的單元</button></div>`:""}
+  </div>`;
+}
+async function impGo(){const r=S.imp.res;if(!r||r.err)return;const pass=$("#impPass").value,strict=$("#impStrict").checked,date=$("#impDate").value||todayStr(),now=Date.now();
+  const units=r.units.filter(u=>!S.imp.off[u.k]);if(!units.length)return toast("沒有勾選任何單元");
+  inflight++;setSync();let nNew=0,nUp=0;
+  try{for(const u of units){
+      if(u.item){const flat={updatedAt:now,scoreUpdatedAt:now};r.rows.forEach(x=>{if(x.vals[u.k]!=null)flat[`results.${x.s.id}.sc`]=x.vals[u.k]});await Store.update("items",u.item.id,flat);nUp++}
+      else{const nid=Store.newId("items"),results={};r.rows.forEach(x=>{if(x.vals[u.k]!=null)results[x.s.id]={sc:x.vals[u.k]}});
+        await Store.set("items",nid,{cls:S.cls,type:"recs",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
+    S.imp={open:false,text:"",res:null,off:{}};toast(`匯入完成：新建 ${nNew} 項、更新 ${nUp} 項`);
+  }catch(e){writeErr(e)}finally{inflight--;setSync();render()}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-imp]");if(!b||S.readOnly)return;const a=b.dataset.imp,im=S.imp;
+  const keep=()=>{const t=$("#impText");if(t)im.text=t.value;const p=$("#impPass");if(p)im.pass=p.value;const d=$("#impDate");if(d)im.date=d.value;const s=$("#impStrict");if(s)im.strict=s.checked};
+  if(a==="open"){im.open=true;return render()}
+  if(a==="close"){S.imp={open:false,text:"",res:null,off:{}};return render()}
+  if(a==="parse"){keep();im.res=impParse(im.text,S.cls);im.off={};if(im.res.units)im.res.units.forEach(u=>{if(!u.n)im.off[u.k]=true});return render()}
+  if(a==="go"){keep();return impGo()}});
+document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.impu!=null){S.imp.off[t.dataset.impu]=!t.checked}});
+document.addEventListener("input",e=>{if(e.target.id==="impText"){S.imp.text=e.target.value;S.imp.res=null;const pv=e.target.closest(".impbox")?.querySelector('[data-imp="go"]');if(pv)pv.disabled=true}});
 </script>
 </body>
 </html>
