@@ -520,7 +520,7 @@ const Store={
   getAll:async c=>(await fs.collection(c).get()).docs.map(d=>({id:d.id,...d.data()}))};
 
 /* ---------------- 設定 ---------------- */
-const TYPES=[["word","單字","score","sky"],["unit","單元考","score","grape"],["w1200","1200單字小考","score","pink"],["w2000","2000單字小考","score","mint"],["w400","400單字小考","score","orange"],["rec","錄音","done","yellow"],["recs","錄音評分","score","yellow"],["hw","作業","done","orange"],["other","其他","score","grape"]];
+const TYPES=[["word","單字","score","sky"],["unit","單元考","score","grape"],["w1200","1200單字小考","score","pink"],["w2000","2000單字小考","score","mint"],["w400","400單字小考","score","orange"],["rec","錄音","done","yellow"],["recs","錄音評分","score","yellow"],["speak","Speaklens","score","sky"],["hw","作業","done","orange"],["other","其他","score","grape"]];
 const MK_TYPE=["makeup","補課","done","sky"];
 const OLD_TYPES=[MK_TYPE,["quiz","小考","score","sky"],["exam","段考","score","grape"],["month","月考","score","pink"],["vocab","單字考","score","mint"]];
 const TYPE=Object.fromEntries([...TYPES,...OLD_TYPES].map(t=>[t[0],{label:t[1],kind:t[2],color:t[3]}]));
@@ -559,7 +559,7 @@ function res(item,sid){const o=S.overlay[item.id]?.[sid];const r=(item.results||
   if(!o)return r;const m={...r,...o};if(o.mk)m.mk={...(r.mk||{}),...o.mk};if(o.log)m.log={...(r.log||{}),...o.log};return m}
 function makeups(r){return Object.entries(r.mk||{}).filter(([,m])=>m&&!m.del&&m.sc!=null).map(([k,m])=>({k,...m})).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.at||0)-(b.at||0))}
 function logs(r){return Object.entries(r.log||{}).map(([k,l])=>({k,...l})).sort((a,b)=>(a.at||0)-(b.at||0))}
-const isRecS=i=>i&&i.type==="recs";
+const isRecS=i=>!!i&&(i.type==="recs"||i.type==="speak");
 const recWord=t=>String(t).replace(/缺考/g,"請假").replace(/補考/g,"重錄").replace(/未登記/g,"未錄音");
 function status(item,sid){const r=status0(item,sid);if(isRecS(item))r.l=recWord(r.l);return r}
 function status0(item,sid){
@@ -644,7 +644,7 @@ function ring(n,t,col){const p=t?n/t:0,C=2*Math.PI*21;return `<svg viewBox="0 0 
 
 function vEntry(){
   if(!S.cls)return emptyBox("先建立班級與學生名單","到「班級與學生」輸入班級名稱和學生姓名，就可以開始登記。",`<button class="btn primary" data-tab="roster" style="margin-top:6px">前往建立名單</button>`);
-  const stus=studentsOf(S.cls),isDoneAll=i=>stus.length&&stus.every(s=>!status(i,s.id).out)&&(i.type==="hw"||i.type==="recs"||(i.uploaded&&!upStale(i)));
+  const stus=studentsOf(S.cls),isDoneAll=i=>stus.length&&stus.every(s=>!status(i,s.id).out)&&(i.type==="hw"||isRecS(i)||(i.uploaded&&!upStale(i)));
   const everyItem=itemsOf(S.cls),doneItems=everyItem.filter(isDoneAll);
   const allItems=S.showDone?everyItem:everyItem.filter(i=>!isDoneAll(i)||i.id===S.itemId);
   const cats=[];allItems.forEach(i=>{const k=typeKey(i);let c=cats.find(x=>x.k===k);if(!c){c={k,t:typeOf(i),n:0};cats.push(c)}c.n++});
@@ -1639,8 +1639,8 @@ document.addEventListener("change",e=>{const t=e.target;
     setTimeout(()=>{safe(()=>Store.update("students",sid,{[key]:v}),"");const x=sxCur();if(x&&sxHas(sxRec(x,sid)))sxSave(sid,{[key]:v})});return}
   if(t.id==="doneDate"){if(t.value){S.doneDay=t.value>todayStr()?todayStr():t.value;render()}return}
   if(t.name==="eiType"){$("#eiTypeName").hidden=t.value!=="other";return}
-  if(t.name==="niType"&&t.value==="recs"&&!$("#niPass").value)$("#niPass").value=80;
-  if(t.name==="niType"){const on=t.value==="recs",r=$("#niStrictRow");if(r){r.hidden=!on;if(on){const last=itemsOf(S.cls).find(i=>i.type==="recs");$("#niStrict").checked=!!last?.strict}}}
+  if(t.name==="niType"&&(t.value==="recs"||t.value==="speak")&&!$("#niPass").value)$("#niPass").value=80;
+  if(t.name==="niType"){const on=t.value==="recs"||t.value==="speak",r=$("#niStrictRow");if(r){r.hidden=!on;if(on){const last=itemsOf(S.cls).find(i=>i.type===t.value)||itemsOf(S.cls).find(isRecS);$("#niStrict").checked=!!last?.strict}}}
   if(t.dataset&&t.dataset.strict){safe(()=>Store.update("items",t.dataset.strict,{strict:t.checked}),t.checked?"已改成每一題都要達標":"已改成只看平均分數");return}
   if(t.name==="niType"){$("#niOther").hidden=t.value!=="other";$("#niScoreRow").hidden=t.value==="other"?document.querySelector("[name=niKind]:checked").value!=="score":TYPE[t.value].kind!=="score"}
   if(t.name==="niKind")$("#niScoreRow").hidden=t.value!=="score";
@@ -1672,7 +1672,7 @@ document.addEventListener("submit",async e=>{e.preventDefault();const f=e.target
     S.editItem=null;if(type!==item.type||d.typeName!==(item.typeName||null))S.itemCat="";safe(()=>Store.update("items",item.id,d),"已更新「"+title+"」");return}
   if(f.id==="newItem"){const type=f.querySelector("[name=niType]:checked").value;const d={cls:S.cls,type,title:$("#niTitle").value.trim(),date:$("#niDate").value||todayStr(),results:{},createdAt:Date.now(),createdBy:ME||null};
     if(type==="other"){const nm=$("#niTypeName").value.trim();if(!nm){toast("請填寫類型名稱");$("#niTypeName").focus();return}d.typeName=nm;d.kind=f.querySelector("[name=niKind]:checked").value}
-    if(type==="recs")d.strict=!!$("#niStrict")?.checked;if(kindOf(d)==="score"){d.noRetake=$("#niNoRetake").checked;d.full=Number($("#niFull").value)||100;const p=$("#niPass").value;d.pass=p===""?null:Number(p)}
+    if(type==="recs"||type==="speak")d.strict=!!$("#niStrict")?.checked;if(kindOf(d)==="score"){d.noRetake=$("#niNoRetake").checked;d.full=Number($("#niFull").value)||100;const p=$("#niPass").value;d.pass=p===""?null:Number(p)}
     const id=Store.newId("items");S.itemId=id;safe(()=>Store.set("items",id,d),"已新增「"+d.title+"」")}
   if(f.id==="addStu"){const cls=$("#asCls").value.trim();const names=$("#asNames").value.split(/\n|,|，|、/).map(x=>x.trim()).filter(Boolean);if(!cls||!names.length)return;
     const base=studentsOf(cls).reduce((m,s)=>Math.max(m,Number(s.seat)||0),0);S.cls=cls;
@@ -1790,14 +1790,14 @@ function vDiary(){
       <label class="label" for="dyHw">🔺回家作業（一行一項）</label>
       <textarea id="dyHw" data-k="dyHw" data-keepv="1" rows="4" ${dis} placeholder="例：習作 Workbook p.12-13&#10;錄音 Recording：Unit 3 課文">${esc(dy.hw)}</textarea>
       ${ro?"":dyChips("hw")}
-      ${ro?"":dyRecPending(dy).map(t=>`<div class="dyrecmk"><span>🎙 「<b>${esc(t)}</b>」是錄音作業，還沒有錄音評分項目</span><button type="button" class="btn sm" style="background:var(--yellow);color:#4a3500" data-dyrecmk="${esc(t)}">建立錄音評分</button></div>`).join("")}
+      ${ro?"":dyRecPending(dy).map(t=>`<div class="dyrecmk"><span>🎙 「<b>${esc(t)}</b>」是 Speaklens 錄音作業，還沒有建立項目</span><button type="button" class="btn sm" style="background:var(--yellow);color:#4a3500" data-dyrecmk="${esc(t)}">建立 Speaklens 項目</button></div>`).join("")}
       <label class="label" for="dyNext">🔺下次測驗（一行一項，可空白）</label>
       <textarea id="dyNext" data-k="dyNext" data-keepv="1" rows="2" ${dis} placeholder="例：期中考口說考試&#10;U3L1 單字考">${esc(dy.next)}</textarea>
       ${ro?"":dyChips("next")}
     </section>
     <section class="card stack">
       <div class="row between"><h3>今天檢查的作業</h3><span class="sub">${dy.checks.length} 項</span></div>
-      <div class="sub">名稱自己取，會用這個名稱列進「登記成績」和「未完成總表」。<b>Speaklens 錄音不用加在這裡</b>，它由「錄音評分」記分數，未完成的會自動列進聯絡簿。${!dy.exists&&dy.checks.length&&prevHw.length?"已先帶入上一次聯絡簿的回家作業，可以修改或刪除。":""}</div>
+      <div class="sub">名稱自己取，會用這個名稱列進「登記成績」和「未完成總表」。<b>Speaklens 錄音不用加在這裡</b>，它在「登記成績」的 Speaklens 項目記分數，未完成的會自動列進聯絡簿。${!dy.exists&&dy.checks.length&&prevHw.length?"已先帶入上一次聯絡簿的回家作業，可以修改或刪除。":""}</div>
       <div class="dychecks">${dy.checks.map((c,i)=>`<div class="dycheck"><span class="dyci">${i+1}</span><input type="text" data-dycname="${c.id}" data-k="dyc-${c.id}" data-keepv="1" value="${esc(c.name)}" placeholder="作業名稱，例：U2L2 單字 4 次" ${dis}>${ro?"":`<button type="button" class="tdx" data-dycdel="${c.id}" aria-label="刪除這項作業">×</button>`}</div>`).join("")||`<div class="sub">今天沒有要檢查的作業</div>`}</div>
       ${ro?"":`<div class="row"><button class="btn sm" data-dycadd="1">＋ 新增作業</button>${prevHw.length?`<button class="btn sm sky" data-dycprev="1">帶入上次的回家作業</button>`:""}</div>`}
     </section>
@@ -1813,7 +1813,7 @@ function vDiary(){
     <section class="card stack">
       <div class="row between"><h3>全班訊息</h3><button class="btn primary sm" data-dycopy="all">複製文字</button></div>
       <label class="row sub" style="cursor:pointer"><input type="checkbox" id="dyShowNo" ${S.dyShowNo?"checked":""}> 附上未交作業名單</label>
-      <label class="row sub" style="cursor:pointer;margin-top:-6px"><input type="checkbox" id="dyShowRec" ${S.dyShowRec?"checked":""}> 附上錄音未完成名單（從「錄音評分」自動抓：未錄音、未達標）</label>
+      <label class="row sub" style="cursor:pointer;margin-top:-6px"><input type="checkbox" id="dyShowRec" ${S.dyShowRec?"checked":""}> 附上錄音未完成名單（從 Speaklens／錄音評分自動抓：未錄音、未達標）</label>
       <pre class="dypre" id="dyPre">${esc(dyText(dy))}</pre>
     </section>
     <section class="card stack">
@@ -1880,8 +1880,8 @@ document.addEventListener("click",async e=>{const b=e.target.closest("button");i
     dy.checks=dy.checks.filter(x=>x!==c);dy.dirty=true;return render()}
   if(b.dataset.dycprev){const have=new Set(dy.checks.map(c=>c.name.trim()));const add=dyPrevHw(dy.cls,dy.date).filter(n=>!have.has(n));if(!add.length){toast("上次的回家作業都已經在清單裡了");return}
     add.forEach(n=>dy.checks.push({id:newKey(),name:n,nohw:[],itemId:null}));dy.dirty=true;toast(`已帶入 ${add.length} 項`);return render()}
-  if(b.dataset.dyrecmk){const title=b.dataset.dyrecmk,last=itemsOf(dy.cls).find(isRecS),nid=Store.newId("items");
-    await safe(()=>Store.set("items",nid,{cls:dy.cls,type:"recs",title,date:dy.date,results:{},full:100,pass:last?.pass??80,strict:!!last?.strict,noRetake:false,createdAt:Date.now(),createdBy:ME||null}),`已建立錄音評分「${title}」`);return render()}
+  if(b.dataset.dyrecmk){const title=b.dataset.dyrecmk,last=itemsOf(dy.cls).find(i=>i.type==="speak")||itemsOf(dy.cls).find(isRecS),nid=Store.newId("items");
+    await safe(()=>Store.set("items",nid,{cls:dy.cls,type:"speak",title,date:dy.date,results:{},full:100,pass:last?.pass??80,strict:!!last?.strict,noRetake:false,createdAt:Date.now(),createdBy:ME||null}),`已建立 Speaklens「${title}」`);return render()}
   if(b.dataset.dyins){const f=b.dataset.dyins,cur=dy[f];dy[f]=(cur&&!cur.endsWith("\n")?cur+"\n":cur)+b.dataset.p;dy.dirty=true;render();
     const ta=$(dyTa[f]);if(ta){ta.focus();const n=ta.value.length;ta.setSelectionRange(n,n)}return}
   if(b.dataset.dycopy)return copy(dyText(dy,b.dataset.dycopy==="all"?null:b.dataset.dycopy));
@@ -1924,10 +1924,10 @@ function impParse(text,cls){
 }
 function recImpHtml(){
   if(S.readOnly)return "";const im=S.imp;
-  if(!im.open)return `<button class="btn sm" style="background:var(--yellow-s);color:var(--amber)" data-imp="open">📋 貼上匯入錄音成績</button>`;
-  const r=im.res,last=itemsOf(S.cls).find(isRecS);
+  if(!im.open)return `<button class="btn sm" style="background:var(--yellow-s);color:var(--amber)" data-imp="open">📋 貼上匯入 Speaklens 成績</button>`;
+  const r=im.res,last=itemsOf(S.cls).find(i=>i.type==="speak")||itemsOf(S.cls).find(isRecS);
   return `<div class="impbox stack">
-    <div class="row between"><b>📋 貼上匯入錄音成績</b><button class="btn sm" data-imp="close">關閉</button></div>
+    <div class="row between"><b>📋 貼上匯入 Speaklens 成績</b><button class="btn sm" data-imp="close">關閉</button></div>
     <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」；有幾題沒過寫在括號裡，例如 72(22)。匯入到目前選的班級 <b>${esc(S.cls)}</b>。</div>
     <textarea id="impText" data-k="impText" data-keepv="1" rows="6" placeholder="姓名,Howdy 6 - U4,Howdy 6 - U5&#10;Samson,86,86&#10;Jerry,76,-">${esc(im.text)}</textarea>
     <div class="row"><input id="impPass" type="number" step="any" value="${esc(im.pass??last?.pass??80)}" class="grow" aria-label="及格分" placeholder="及格分"><input id="impDate" type="date" value="${esc(im.date||todayStr())}" class="grow" aria-label="日期"></div>
@@ -1945,7 +1945,7 @@ async function impGo(){const r=S.imp.res;if(!r||r.err)return;const pass=$("#impP
   try{for(const u of units){
       if(u.item){const flat={updatedAt:now,scoreUpdatedAt:now};r.rows.forEach(x=>{if(x.vals[u.k]!=null){flat[`results.${x.s.id}.sc`]=x.vals[u.k];flat[`results.${x.s.id}.wk`]=x.wks[u.k]}});await Store.update("items",u.item.id,flat);nUp++}
       else{const nid=Store.newId("items"),results={};r.rows.forEach(x=>{if(x.vals[u.k]!=null)results[x.s.id]={sc:x.vals[u.k],wk:x.wks[u.k]}});
-        await Store.set("items",nid,{cls:S.cls,type:"recs",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
+        await Store.set("items",nid,{cls:S.cls,type:"speak",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
     S.imp={open:false,text:"",res:null,off:{}};toast(`匯入完成：新建 ${nNew} 項、更新 ${nUp} 項`);
   }catch(e){writeErr(e)}finally{inflight--;setSync();render()}}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-imp]");if(!b||S.readOnly)return;const a=b.dataset.imp,im=S.imp;
