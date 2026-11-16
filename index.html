@@ -516,7 +516,7 @@ const Store={
   getAll:async c=>(await fs.collection(c).get()).docs.map(d=>({id:d.id,...d.data()}))};
 
 /* ---------------- 設定 ---------------- */
-const TYPES=[["word","單字","score","sky"],["unit","單元考","score","grape"],["w1200","1200單字小考","score","pink"],["w2000","2000單字小考","score","mint"],["w400","400單字小考","score","orange"],["rec","錄音","done","yellow"],["hw","作業","done","orange"],["other","其他","score","grape"]];
+const TYPES=[["word","單字","score","sky"],["unit","單元考","score","grape"],["w1200","1200單字小考","score","pink"],["w2000","2000單字小考","score","mint"],["w400","400單字小考","score","orange"],["rec","錄音","done","yellow"],["recs","錄音評分","score","yellow"],["hw","作業","done","orange"],["other","其他","score","grape"]];
 const MK_TYPE=["makeup","補課","done","sky"];
 const OLD_TYPES=[MK_TYPE,["quiz","小考","score","sky"],["exam","段考","score","grape"],["month","月考","score","pink"],["vocab","單字考","score","mint"]];
 const TYPE=Object.fromEntries([...TYPES,...OLD_TYPES].map(t=>[t[0],{label:t[1],kind:t[2],color:t[3]}]));
@@ -555,7 +555,10 @@ function res(item,sid){const o=S.overlay[item.id]?.[sid];const r=(item.results||
   if(!o)return r;const m={...r,...o};if(o.mk)m.mk={...(r.mk||{}),...o.mk};if(o.log)m.log={...(r.log||{}),...o.log};return m}
 function makeups(r){return Object.entries(r.mk||{}).filter(([,m])=>m&&!m.del&&m.sc!=null).map(([k,m])=>({k,...m})).sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.at||0)-(b.at||0))}
 function logs(r){return Object.entries(r.log||{}).map(([k,l])=>({k,...l})).sort((a,b)=>(a.at||0)-(b.at||0))}
-function status(item,sid){
+const isRecS=i=>i&&i.type==="recs";
+const recWord=t=>String(t).replace(/缺考/g,"請假").replace(/補考/g,"重錄").replace(/未登記/g,"未錄音");
+function status(item,sid){const r=status0(item,sid);if(isRecS(item))r.l=recWord(r.l);return r}
+function status0(item,sid){
   if(item._mk){const m=item._mk;if(m.done)return{c:"ok",l:"已補課"+(m.doneDate?" "+md(m.doneDate):"")};const pg=mkProg(m);if(pg.n)return{c:"abs",l:`已補 ${pg.n}/${pg.lines.length}`+(m.planDate?` · 預計 ${md(m.planDate)}`:""),out:true};return{c:"miss",l:m.planDate?"預計 "+md(m.planDate)+(m.planTime?" "+m.planTime:"")+" 補課":"未補課",out:true}}
   const r=res(item,sid),kind=kindOf(item);
   if(kind==="score"){
@@ -636,7 +639,7 @@ function ring(n,t,col){const p=t?n/t:0,C=2*Math.PI*21;return `<svg viewBox="0 0 
 
 function vEntry(){
   if(!S.cls)return emptyBox("先建立班級與學生名單","到「班級與學生」輸入班級名稱和學生姓名，就可以開始登記。",`<button class="btn primary" data-tab="roster" style="margin-top:6px">前往建立名單</button>`);
-  const stus=studentsOf(S.cls),isDoneAll=i=>stus.length&&stus.every(s=>!status(i,s.id).out)&&(i.type==="hw"||(i.uploaded&&!upStale(i)));
+  const stus=studentsOf(S.cls),isDoneAll=i=>stus.length&&stus.every(s=>!status(i,s.id).out)&&(i.type==="hw"||i.type==="recs"||(i.uploaded&&!upStale(i)));
   const everyItem=itemsOf(S.cls),doneItems=everyItem.filter(isDoneAll);
   const allItems=S.showDone?everyItem:everyItem.filter(i=>!isDoneAll(i)||i.id===S.itemId);
   const cats=[];allItems.forEach(i=>{const k=typeKey(i);let c=cats.find(x=>x.k===k);if(!c){c={k,t:typeOf(i),n:0};cats.push(c)}c.n++});
@@ -648,7 +651,7 @@ function vEntry(){
   const list=items.map(i=>{const n=stus.filter(s=>!status(i,s.id).out).length,t=typeOf(i),full=stus.length&&n===stus.length;
     return `<button class="item" style="${cv(t.color)}" data-item="${i.id}" aria-current="${i.id===S.itemId}"><span class="t"><span class="tag">${t.label}</span><span>${esc(i.title)}</span></span>
       <span class="bar ${full?"full":""}"><i style="width:${stus.length?n/stus.length*100:0}%"></i></span>
-      <span class="meta"><span>${esc(i.date||"")}</span><span class="row" style="gap:6px">${upChip(i)}<span>${n} / ${stus.length}</span></span></span></button>`}).join("");
+      <span class="meta"><span>${esc(i.date||"")}</span><span class="row" style="gap:6px">${isRecS(i)?"":upChip(i)}<span>${n} / ${stus.length}</span></span></span></button>`}).join("");
   const form=S.readOnly?"":`<details class="new newtop" ${items.length?"":"open"}><summary>新增評量項目</summary><form id="newItem" class="stack" autocomplete="off">
       <div class="typepick">${TYPES.map((t,ix)=>`<label style="${cv(t[3])}"><input type="radio" name="niType" value="${t[0]}" ${ix===0?"checked":""}><span>${t[1]}</span></label>`).join("")}</div>
       <input id="niTitle" type="text" placeholder="名稱，例：Unit 3 單字小考" required>
@@ -671,7 +674,8 @@ function editItemHtml(item){const kind=kindOf(item),opts=TYPES.filter(t=>t[0]===
     ${kind==="score"?`<div class="row" id="eiScoreRow"><label class="stack grow" style="gap:4px;min-width:0"><span class="label">滿分</span><input id="eiFull" type="number" step="any" value="${esc(item.full??100)}" style="width:100%"></label><label class="stack grow" style="gap:4px;min-width:0"><span class="label">及格分（可空白）</span><input id="eiPass" type="number" step="any" value="${hasPass(item)?esc(item.pass):""}" style="width:100%"></label></div>
     <label class="chk"><input type="checkbox" id="eiNoRetake" ${item.noRetake?"checked":""}> 不需補考（只記錄成績、通知家長）</label>`:""}
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="editCancel">取消</button><button class="btn primary" type="submit">儲存修改</button></div></form>`}
-function gridHtml(item,stus){
+function gridHtml(item,stus){const h=gridHtml0(item,stus);return isRecS(item)?recWord(h):h}
+function gridHtml0(item,stus){
   const t=typeOf(item),kind=t.kind,ro=S.readOnly?"disabled":"";
   const doneN=stus.filter(s=>!status(item,s.id).out).length;
   const rows=stus.map((s,ix)=>{const r=res(item,s.id),st=status(item,s.id);let ctl,extra="";
@@ -688,7 +692,7 @@ function gridHtml(item,stus){
     return `<div class="srow"><span class="nm">${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}</span>${extra}</div>`}).join("");
   return (S.editItem===item.id&&!S.readOnly?editItemHtml(item):`<div class="sheet-h" style="${cv(t.color)}"><div class="stack" style="gap:4px"><div><span class="tag">${t.label}</span>${S.readOnly?"":` <button class="btn sm" id="editItem" style="padding:3px 12px;margin-left:4px">✎ 編輯</button>`} <span class="sub">${esc(item.date||"")}${item.full?` · 滿分 ${item.full}`:""}${hasPass(item)?` · 及格 ${item.pass}`:""}</span></div><h2>${esc(item.title)}</h2>${kind==="score"?`<label class="chk nr"><input type="checkbox" data-noretake="${item.id}" ${item.noRetake?"checked":""} ${ro}> 不需補考（只記錄成績、通知家長）</label>`:""}</div>
     <div class="ring">${ring(doneN,stus.length,t.color)}<div><div class="rv">${doneN}<span class="sub"> / ${stus.length}</span></div><div class="sub">已完成</div></div></div></div>`)+`
-    ${upBar(item)}
+    ${isRecS(item)?"":upBar(item)}
     ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
     <div>${rows||`<div class="empty">這個班級還沒有學生</div>`}</div>
     ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
@@ -722,7 +726,7 @@ function vStudent(){
 function vMissing(){
   const cl=classesList();if(!cl.length)return emptyBox("尚無資料","");
   const all=S.cls==="__all",cs=all?cl:[S.cls];let rows="",cnt=0;const ents=[];
-  cs.forEach(c=>studentsOf(c).forEach(s=>{let out=outstanding(s);if(S.missType!=="all")out=out.filter(i=>S.missType==="mk"?i._mk:S.missType==="rec"?(!i._mk&&kindOf(i)==="done"):kindOf(i)==="score");
+  cs.forEach(c=>studentsOf(c).forEach(s=>{let out=outstanding(s);if(S.missType!=="all")out=out.filter(i=>S.missType==="mk"?i._mk:S.missType==="rec"?(!i._mk&&(kindOf(i)==="done"||isRecS(i))):(kindOf(i)==="score"&&!isRecS(i)));
     if(out.length)ents.push({c,s,out})}));
   if(S.missGroup)ents.sort((a,b)=>careOrder(careGroup(a.s),careGroup(b.s)));
   let lastG=null;const ncol=all?4:3;
@@ -1026,7 +1030,7 @@ function vAgenda(){
   const dayAp=ap.filter(a=>a.date===sel),late=ap.filter(a=>a.date<t),book=toBook(),ro=S.readOnly;
   const upcoming=ap.filter(a=>a.date>=t);
   const contacts=S.students.filter(s=>isOutside(s)&&outstanding(s).length);
-  const up=S.items.filter(i=>kindOf(i)==="score"&&(!i.uploaded||upStale(i))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const up=S.items.filter(i=>kindOf(i)==="score"&&!isRecS(i)&&(!i.uploaded||upStale(i))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const tds=S.todos.filter(x=>x.date===sel||(!x.done&&x.date&&x.date<sel&&sel===t)).sort((a,b)=>(a.done-b.done)||(a.date||"").localeCompare(b.date||"")||(a.createdAt||0)-(b.createdAt||0));
   const sec=(title,n,body,color="grape")=>`<section class="card stack"><div class="row between"><h3>${title}</h3>${n!=null?`<span class="pill" style="background:var(--${color}-s);color:var(--${color})">${n}</span>`:""}</div>${body}</section>`;
   return `<div class="cols"><div class="stack" style="gap:18px"><section class="card stack">${agCal()}<div class="row between"><button class="btn sm" data-agday="${t}">回到今天</button><button class="btn sm sky" id="icsAll">全部約會加入行事曆</button></div>
@@ -1627,6 +1631,7 @@ document.addEventListener("change",e=>{const t=e.target;
     setTimeout(()=>{safe(()=>Store.update("students",sid,{[key]:v}),"");const x=sxCur();if(x&&sxHas(sxRec(x,sid)))sxSave(sid,{[key]:v})});return}
   if(t.id==="doneDate"){if(t.value){S.doneDay=t.value>todayStr()?todayStr():t.value;render()}return}
   if(t.name==="eiType"){$("#eiTypeName").hidden=t.value!=="other";return}
+  if(t.name==="niType"&&t.value==="recs"&&!$("#niPass").value)$("#niPass").value=80;
   if(t.name==="niType"){$("#niOther").hidden=t.value!=="other";$("#niScoreRow").hidden=t.value==="other"?document.querySelector("[name=niKind]:checked").value!=="score":TYPE[t.value].kind!=="score"}
   if(t.name==="niKind")$("#niScoreRow").hidden=t.value!=="score";
   if(t.id==="rCls"){S.rec.cls=t.value;render()} if(t.id==="rType"){S.rec.type=t.value;render()} if(t.id==="rOnly"){S.rec.only=t.value;render()}
