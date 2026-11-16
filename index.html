@@ -1913,11 +1913,11 @@ function impParse(text,cls){
   if(!head.length)return{err:"第一行要放單元名稱，例如：姓名、Howdy 6 - U4、Howdy 6 - U5"};
   const stus=studentsOf(cls),out=[],miss=[];
   rows.slice(1).forEach(r=>{let c=r.filter(x=>x!=="");if(c.length>head.length+1&&/^\d+$/.test(c[0]))c=c.slice(1);
-    const name=c[0];if(!name)return;const vals=head.map((_,k)=>{const v=(c[k+1]||"").replace(/分$/,"");return /^\d+(\.\d+)?$/.test(v)?Number(v):null});
+    const name=c[0];if(!name)return;const wks=[],vals=head.map((_,k)=>{const v=(c[k+1]||"").replace(/分/g,"").trim(),m=v.match(/^(\d+(?:\.\d+)?)\s*(?:[(（/]\s*(\d+)\s*[)）]?|\s+(\d+))?$/);wks[k]=m&&(m[2]||m[3])?Number(m[2]||m[3]):null;return m?Number(m[1]):null});
     const n=impNorm(name),eng=impNorm((name.match(/[A-Za-z][A-Za-z\s.'-]*/)||[""])[0]),zh=impNorm(name.replace(/[A-Za-z\s.'-]/g,""));
     let m=stus.filter(s=>impNorm(s.name)===n);
     if(m.length!==1)m=stus.filter(s=>{const sn=impNorm(s.name);return sn&&(n.includes(sn)||sn.includes(n)||(eng&&sn===eng)||(zh&&zh.length>=2&&sn.includes(zh)))});
-    if(m.length===1)out.push({name,s:m[0],vals});else miss.push(name)});
+    if(m.length===1)out.push({name,s:m[0],vals,wks});else miss.push(name)});
   const exist=new Map(itemsOf(cls).filter(isRecS).map(i=>[impNorm(i.title),i]));
   const units=head.map((t,k)=>({t,k,n:out.filter(r=>r.vals[k]!=null).length,item:exist.get(impNorm(t))||null}));
   return{units,rows:out,miss};
@@ -1928,7 +1928,7 @@ function recImpHtml(){
   const r=im.res,last=itemsOf(S.cls).find(isRecS);
   return `<div class="impbox stack">
     <div class="row between"><b>📋 貼上匯入錄音成績</b><button class="btn sm" data-imp="close">關閉</button></div>
-    <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」。匯入到目前選的班級 <b>${esc(S.cls)}</b>。</div>
+    <div class="sub">第一行放單元名稱，下面每行一位學生：名字、各單元分數，用 Tab 或逗號分開；沒錄音打「-」；有幾題沒過寫在括號裡，例如 72(22)。匯入到目前選的班級 <b>${esc(S.cls)}</b>。</div>
     <textarea id="impText" data-k="impText" data-keepv="1" rows="6" placeholder="姓名,Howdy 6 - U4,Howdy 6 - U5&#10;Samson,86,86&#10;Jerry,76,-">${esc(im.text)}</textarea>
     <div class="row"><input id="impPass" type="number" step="any" value="${esc(im.pass??last?.pass??80)}" class="grow" aria-label="及格分" placeholder="及格分"><input id="impDate" type="date" value="${esc(im.date||todayStr())}" class="grow" aria-label="日期"></div>
     <label class="chk"><input type="checkbox" id="impStrict" ${(im.strict??!!last?.strict)?"checked":""}> 每一題都要達標（不只看平均分數）</label>
@@ -1943,8 +1943,8 @@ async function impGo(){const r=S.imp.res;if(!r||r.err)return;const pass=$("#impP
   const units=r.units.filter(u=>!S.imp.off[u.k]);if(!units.length)return toast("沒有勾選任何單元");
   inflight++;setSync();let nNew=0,nUp=0;
   try{for(const u of units){
-      if(u.item){const flat={updatedAt:now,scoreUpdatedAt:now};r.rows.forEach(x=>{if(x.vals[u.k]!=null)flat[`results.${x.s.id}.sc`]=x.vals[u.k]});await Store.update("items",u.item.id,flat);nUp++}
-      else{const nid=Store.newId("items"),results={};r.rows.forEach(x=>{if(x.vals[u.k]!=null)results[x.s.id]={sc:x.vals[u.k]}});
+      if(u.item){const flat={updatedAt:now,scoreUpdatedAt:now};r.rows.forEach(x=>{if(x.vals[u.k]!=null){flat[`results.${x.s.id}.sc`]=x.vals[u.k];flat[`results.${x.s.id}.wk`]=x.wks[u.k]}});await Store.update("items",u.item.id,flat);nUp++}
+      else{const nid=Store.newId("items"),results={};r.rows.forEach(x=>{if(x.vals[u.k]!=null)results[x.s.id]={sc:x.vals[u.k],wk:x.wks[u.k]}});
         await Store.set("items",nid,{cls:S.cls,type:"recs",title:u.t,date,results,full:100,pass:pass===""?null:Number(pass),strict,noRetake:false,createdAt:now,createdBy:ME||null});nNew++}}
     S.imp={open:false,text:"",res:null,off:{}};toast(`匯入完成：新建 ${nNew} 項、更新 ${nUp} 項`);
   }catch(e){writeErr(e)}finally{inflight--;setSync();render()}}
