@@ -1725,7 +1725,11 @@ else{
 <script>
 /* ================= 聯絡簿 ================= */
 S.diary=[];S.dyDrafts={};S.dyShowNo=true;
-try{S.dyShowNo=localStorage.getItem("gb.dyno")!=="0"}catch(_){}
+try{S.dyShowNo=localStorage.getItem("gb.dyno")!=="0";S.dyShowRec=localStorage.getItem("gb.dyrec")!=="0"}catch(_){S.dyShowRec=true}
+/* 錄音評分未完成（未錄音／未達標） */
+function dyRecList(cls){const stus=studentsOf(cls);return itemsOf(cls).filter(isRecS).slice().reverse().map(i=>({i,rows:stus.filter(s=>status(i,s.id).out).map(s=>({s,l:status(i,s.id).l}))})).filter(x=>x.rows.length)}
+const dyRecOf=(cls,sid)=>dyRecList(cls).map(x=>({i:x.i,r:x.rows.find(r=>r.s.id===sid)})).filter(x=>x.r);
+const dyFlag=(dy,s)=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim()||(S.dyShowRec&&dyRecOf(dy.cls,s.id).length);
 const DY_PROG=["課本 Student Book p.","習作 Workbook p.","單字 Vocabulary：","句型 Sentence Patterns：","文法 Grammar：","自然發音 Phonics：","閱讀 Reading：","歌曲 Song：","小考 Quiz："];
 const DY_HW=["習作 Workbook p.","背單字 Memorize vocabulary：","錄音 Recording：","抄寫 Copy：","朗讀 Read aloud：","複習 Review：","準備小考 Prepare for quiz：","家長簽名 Parent's signature"];
 const DY_NEXT=["單字考 Vocabulary Quiz：","單元考 Unit Test：","句型考 Sentence Quiz：","聽寫 Dictation：","口說考 Speaking Test：","期中考 Midterm Exam","期末考 Final Exam"];
@@ -1750,10 +1754,13 @@ function dyText(dy,sid){
   if(sid){const s=S.students.find(x=>x.id===sid);const nm=s?s.name:"",ex=[],miss=dyMissOf(dy,sid).map(dyCheckName);
     if(dy.absent.includes(sid))ex.push(`${nm} 今天請假，老師會再安排補課。`,`${nm} was absent today. A make-up lesson will be arranged.`);
     if(miss.length)ex.push(`${nm} 未交作業：${miss.join("、")}，麻煩協助叮嚀補交。`,`${nm} has not handed in: ${miss.join(", ")}. Please help make sure it gets done.`);
+    const rc=S.dyShowRec?dyRecOf(dy.cls,sid):[];
+    if(rc.length)ex.push(`${nm} 錄音未完成：${rc.map(x=>`${x.i.title}（${x.r.l}）`).join("、")}，麻煩協助叮嚀完成。`,`${nm} still needs to finish recording: ${rc.map(x=>x.i.title).join(", ")}.`);
     if((dy.notes[sid]||"").trim())ex.push(dy.notes[sid].trim());
     if(ex.length)out.push("","🔺個別提醒 Note：",...ex);
   }else if(S.dyShowNo){const stus=studentsOf(dy.cls),rows=dy.checks.map(c=>({c,n:stus.filter(s=>c.nohw.includes(s.id)).map(s=>s.name)})).filter(r=>r.n.length);
     if(rows.length)out.push("","🔺未交作業 Missing Homework：",...rows.map((r,i)=>`${rows.length>1?(i+1)+". ":""}${dyCheckName(r.c)}：${r.n.join("、")}`))}
+  if(!sid&&S.dyShowRec){const rl=dyRecList(dy.cls);if(rl.length)out.push("","🔺錄音未完成 Recordings to Finish：",...rl.map((x,i)=>`${rl.length>1?(i+1)+". ":""}${x.i.title}：${x.rows.map(r=>`${r.s.name}（${r.l}）`).join("、")}`))}
   out.push("","麻煩家長協助叮嚀，謝謝！","Please kindly remind your child. Thank you!");
   return out.join("\n");
 }
@@ -1762,7 +1769,7 @@ function dyChips(field){const l=field==="prog"?DY_PROG:field==="next"?DY_NEXT:DY
 function vDiary(){
   if(!S.cls||S.cls==="__all")return emptyBox("先選一個班級","上方點選班級後，就能寫這班的聯絡簿。");
   const dy=dyLoad(),ro=S.readOnly,stus=studentsOf(S.cls),dis=ro?"disabled":"";
-  const flagged=stus.filter(s=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim());
+  const flagged=stus.filter(s=>dyFlag(dy,s));
   const hist=(S.diary||[]).filter(x=>x.cls===S.cls&&!x.deleted).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,14);
   const drafts=Object.values(S.dyDrafts).filter(x=>x.dirty&&x.key!==dy.key&&x.cls===S.cls);
   const prevHw=dyPrevHw(dy.cls,dy.date);
@@ -1798,6 +1805,7 @@ function vDiary(){
     <section class="card stack">
       <div class="row between"><h3>全班訊息</h3><button class="btn primary sm" data-dycopy="all">複製文字</button></div>
       <label class="row sub" style="cursor:pointer"><input type="checkbox" id="dyShowNo" ${S.dyShowNo?"checked":""}> 附上未交作業名單</label>
+      <label class="row sub" style="cursor:pointer;margin-top:-6px"><input type="checkbox" id="dyShowRec" ${S.dyShowRec?"checked":""}> 附上錄音未完成名單（從「錄音評分」自動抓：未錄音、未達標）</label>
       <pre class="dypre" id="dyPre">${esc(dyText(dy))}</pre>
     </section>
     <section class="card stack">
@@ -1810,9 +1818,9 @@ function vDiary(){
     </section></div></div>`;
 }
 function dyIndHtml(dy,flagged){if(!flagged.length)return `<div class="sub">目前沒有</div>`;
-  return flagged.map(s=>`<div class="bookrow"><div><b>${esc(s.name)}</b> ${dy.absent.includes(s.id)?`<span class="pill p-abs">請假</span>`:""} ${dyMissOf(dy,s.id).map(c=>`<span class="pill p-miss">未交 ${esc(dyCheckName(c))}</span>`).join(" ")}${(dy.notes[s.id]||"").trim()?`<div class="sub">${esc(dy.notes[s.id])}</div>`:""}</div><button class="btn sm sky" data-dycopy="${s.id}">複製</button></div>`).join("")}
+  return flagged.map(s=>`<div class="bookrow"><div><b>${esc(s.name)}</b> ${dy.absent.includes(s.id)?`<span class="pill p-abs">請假</span>`:""} ${dyMissOf(dy,s.id).map(c=>`<span class="pill p-miss">未交 ${esc(dyCheckName(c))}</span>`).join(" ")} ${S.dyShowRec?dyRecOf(dy.cls,s.id).map(x=>`<span class="pill" style="background:var(--yellow-s);color:var(--amber)">錄音 ${esc(x.i.title)}</span>`).join(" "):""}${(dy.notes[s.id]||"").trim()?`<div class="sub">${esc(dy.notes[s.id])}</div>`:""}</div><button class="btn sm sky" data-dycopy="${s.id}">複製</button></div>`).join("")}
 function dyLive(){const dy=S.dy;if(!dy)return;const p=$("#dyPre");if(p)p.textContent=dyText(dy);const st=$("#dyStat");if(st)st.innerHTML=dyStat(dy);
-  const ind=$("#dyInd");if(ind){const fl=studentsOf(dy.cls).filter(s=>dy.absent.includes(s.id)||dyMissOf(dy,s.id).length||(dy.notes[s.id]||"").trim());ind.innerHTML=dyIndHtml(dy,fl)}}
+  const ind=$("#dyInd");if(ind){const fl=studentsOf(dy.cls).filter(s=>dyFlag(dy,s));ind.innerHTML=dyIndHtml(dy,fl)}}
 function dyMkContent(dy){return [...dyLines(dy.prog).map(dyClean),...dyLines(dy.hw).map(x=>"回家作業："+dyClean(x))].join("\n")}
 async function dySave(){
   const dy=S.dy;if(!dy||S.readOnly)return;const id=dyId(dy.cls,dy.date),old=diaryOf(dy.cls,dy.date)||null,stus=studentsOf(dy.cls),ids=new Set(stus.map(s=>s.id));
@@ -1878,6 +1886,7 @@ document.addEventListener("input",e=>{const t=e.target;if(!S.dy||S.tab!=="diary"
 document.addEventListener("change",e=>{const t=e.target;
   if(t.id==="dyDate"){if(t.value){S.dyDate=t.value;render()}return}
   if(t.id==="dyShowNo"){S.dyShowNo=t.checked;try{localStorage.setItem("gb.dyno",t.checked?"1":"0")}catch(_){}dyLive();return}
+  if(t.id==="dyShowRec"){S.dyShowRec=t.checked;try{localStorage.setItem("gb.dyrec",t.checked?"1":"0")}catch(_){}render();return}
   if(t.id==="mkMiss")mkAutoFill();
 });
 window.addEventListener("beforeunload",e=>{if(Object.values(S.dyDrafts||{}).some(x=>x.dirty)){e.preventDefault();e.returnValue=""}});
