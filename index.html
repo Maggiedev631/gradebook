@@ -471,6 +471,14 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .spc.ok{background:var(--mint-s)}.spc.fail{background:var(--red-s)}.spc.miss{background:#fff6e0}
 .spkey{margin-left:8px;white-space:nowrap}.spkey i{display:inline-block;width:12px;height:12px;border-radius:4px;margin:0 3px 0 8px;vertical-align:-1px}
 .spkey i.ok{background:var(--mint-s);border:1px solid var(--mint)}.spkey i.fail{background:var(--red-s);border:1px solid var(--red)}.spkey i.miss{background:#fff6e0;border:1px solid var(--amber)}
+.sphandle{cursor:grab;color:var(--muted);margin-right:8px;font-size:16px;user-select:none;padding:2px 4px;border-radius:6px}
+.sphandle:hover{background:var(--grape-s);color:var(--grape)}
+.sptbl tr.dragging{opacity:.4}
+.sptbl tr.drop-above td{box-shadow:inset 0 3px 0 var(--grape)}
+.sptbl tr.drop-below td{box-shadow:inset 0 -3px 0 var(--grape)}
+.sptbl td.nmc{box-shadow:2px 0 0 var(--line)}
+.sptbl tr.drop-above td.nmc{box-shadow:inset 0 3px 0 var(--grape),2px 0 0 var(--line)}
+.sptbl tr.drop-below td.nmc{box-shadow:inset 0 -3px 0 var(--grape),2px 0 0 var(--line)}
 .spov{border-top:2px dashed var(--line);padding-top:10px}
 .sprow{display:flex;flex-wrap:wrap;gap:6px}
 .spchip{border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:13px;cursor:pointer}
@@ -1982,27 +1990,41 @@ document.addEventListener("change",e=>{const t=e.target;if(t.dataset&&t.dataset.
   if(t.id==="spF"){S.spF=t.value;render()}});
 /* ================= Speaklens 登記 ================= */
 function spClsCur(){const cl=classesList();return cl.includes(S.spCls)?S.spCls:(cl.includes(S.cls)?S.cls:cl[0])}
+function spStus(c){const l=studentsOf(c);return l.map((s,i)=>({s,k:s.spOrder??(1000+i)})).sort((a,b)=>a.k-b.k).map(x=>x.s)}
 function spUnits(c){return itemsOf(c).filter(i=>i.type==="speak").slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.createdAt||0)-(b.createdAt||0))}
 function spNextName(us){const t=us.length?us[us.length-1].title:"";const m=t.match(/^(.*?U)(\d+)\s*$/i);return m?m[1]+(Number(m[2])+1):""}
 function spCell(i,s,ro){const r=res(i,s.id),st=status(i,s.id),c=r.sc==null&&!st.out?"":st.out?(r.sc==null?"miss":"fail"):"ok";
   return `<td class="spc ${c}" data-spcell="${i.id}|${s.id}" title="${esc(st.l)}"><div class="spin"><input class="score" type="number" step="any" inputmode="decimal" data-k="sp-${i.id}-${s.id}" data-keepv="1" data-spsc="${s.id}" data-spi="${i.id}" value="${r.sc??""}" placeholder="—" aria-label="${esc(s.name)} ${esc(i.title)} 分數" ${ro}>${i.strict?`<input class="score wk" type="number" min="0" step="1" inputmode="numeric" data-k="spw-${i.id}-${s.id}" data-keepv="1" data-spwk="${s.id}" data-spi="${i.id}" value="${r.wk??""}" placeholder="沒過" title="幾題沒過" aria-label="${esc(s.name)} ${esc(i.title)} 幾題沒過" ${ro}>`:""}</div></td>`}
 function vSpeak(){const cl=classesList();if(!cl.length)return emptyBox("還沒有班級","");
-  const c=spClsCur(),stus=studentsOf(c),us=spUnits(c),ro=S.readOnly?"disabled":"",last=us[us.length-1];
+  const c=spClsCur(),stus=spStus(c),us=spUnits(c),ro=S.readOnly?"disabled":"",last=us[us.length-1];
   const chips=`<div class="catbar">${cl.map(k=>{const u=spUnits(k),n=studentsOf(k).filter(s=>u.some(i=>status(i,s.id).out)).length;return `<button class="cat" style="${cv(clsColor(k))}" data-spcls="${esc(k)}" aria-pressed="${k===c}">${esc(k)} <b>${u.length?`${u.length} 單元${n?` · ${n} 人未完成`:""}`:"—"}</b></button>`}).join("")}</div>`;
   const add=S.readOnly?"":`<form class="row sp-add" id="spAddF" autocomplete="off"><input id="spNew" type="text" class="grow" placeholder="新增單元，例：${esc(spNextName(us)||"Howdy 7 - U1")}" value="${esc(spNextName(us))}" aria-label="單元名稱"><input id="spPass" type="number" step="any" value="${esc(last?.pass??80)}" style="width:90px" aria-label="及格分" title="及格分"><label class="chk"><input type="checkbox" id="spStrict" ${last?.strict?"checked":""}> 每一題都要達標</label><button class="btn primary sm" type="submit">＋ 新增單元</button></form>`;
   const table=us.length?`<div class="sptblwrap"><table class="sptbl"><thead><tr><th class="nmc">姓名</th>${us.map(i=>{const n=stus.filter(s=>!status(i,s.id).out).length;return `<th><button class="linkbtn" data-goitem="${i.id}" title="打開登記頁（重錄、請假）">${esc(i.title)}</button><div class="sub">${n}/${stus.length} 完成 · ${hasPass(i)?`及格 ${esc(i.pass)}`:"無及格分"}</div>${S.readOnly?`<div class="sub">${i.strict?"逐題":"看平均"}</div>`:`<label class="sub chk" style="justify-content:center"><input type="checkbox" data-strict="${i.id}" ${i.strict?"checked":""}> 逐題</label>`}</th>`}).join("")}</tr></thead>
-    <tbody>${stus.map(s=>`<tr><td class="nmc"><b>${esc(s.name)}</b></td>${us.map(i=>spCell(i,s,ro)).join("")}</tr>`).join("")}</tbody></table></div>`
+    <tbody>${stus.map(s=>`<tr data-sprow="${s.id}"><td class="nmc">${S.readOnly?"":`<span class="sphandle" title="按住拖曳，調整順序" aria-hidden="true">⠿</span>`}<b>${esc(s.name)}</b></td>${us.map(i=>spCell(i,s,ro)).join("")}</tr>`).join("")}</tbody></table></div>`
     :`<div class="empty">${esc(c)} 還沒有 Speaklens 單元，用上面「新增單元」開始</div>`;
   const f=S.spF||"all",ocls=f==="all"?cl:cl.filter(k=>k===f);
-  const secs=ocls.map(k=>{const st2=studentsOf(k),its=spUnits(k);if(!its.length)return "";
+  const secs=ocls.map(k=>{const st2=spStus(k),its=spUnits(k);if(!its.length)return "";
     const rows=st2.map(s=>({s,o:its.filter(i=>status(i,s.id).out).map(i=>({i,l:status(i,s.id).l}))})).filter(x=>x.o.length);if(!rows.length)return "";
     return `<div class="spov"><div class="row between"><b><span class="tag" style="${cv(clsColor(k))}">${esc(k)}</span></b><span class="sub">${rows.length} 位未完成</span></div>${rows.map(x=>`<div class="bookrow"><b style="min-width:110px">${esc(x.s.name)}</b><div class="row" style="gap:6px;flex:1">${x.o.map(o=>`<span class="pill p-${o.l.startsWith("未錄音")?"miss":"fail"}">${esc(o.i.title)}・${esc(o.l)}</span>`).join("")}</div></div>`).join("")}</div>`}).join("");
   return `<section class="card stack"><div class="row between"><h3>🎙 Speaklens 錄音登記</h3><span class="sub">直接在表格輸入，自動儲存</span></div>${chips}${add}
-      <div class="hint">每格填<b>平均分數</b>；有勾「逐題」的單元，右邊小格填<b>幾題沒過</b>（全部過就空白）。沒錄音留空白。按 Enter 跳到下一位。重錄、請假請點單元名稱進登記頁。<span class="spkey"><i class="ok"></i>完成 <i class="fail"></i>未達標 <i class="miss"></i>未錄音</span></div>
+      <div class="hint">每格填<b>平均分數</b>；有勾「逐題」的單元，右邊小格填<b>幾題沒過</b>（全部過就空白）。沒錄音留空白。按 Enter 跳到下一位。按住名字左邊的 ⠿ 可以拖曳調整學生順序。重錄、請假請點單元名稱進登記頁。<span class="spkey"><i class="ok"></i>完成 <i class="fail"></i>未達標 <i class="miss"></i>未錄音</span></div>
       ${table}</section>
     <section class="card stack"><div class="row between"><h3>還沒完成的學生</h3><select id="spF" aria-label="篩選班級"><option value="all">全部班級</option>${cl.map(k=>`<option value="${esc(k)}" ${f===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
       ${secs||`<div class="sub">目前沒有未完成的 Speaklens 🎉</div>`}</section>`}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-spcls]");if(b){S.spCls=b.dataset.spcls;render()}});
+/* 拖曳調整 Speaklens 學生順序 */
+const spClear=()=>document.querySelectorAll("tr.drop-above,tr.drop-below,tr.dragging").forEach(r=>r.classList.remove("drop-above","drop-below","dragging"));
+document.addEventListener("pointerdown",e=>{const h=e.target.closest(".sphandle");if(h&&!S.readOnly){const tr=h.closest("tr[data-sprow]");if(tr)tr.draggable=true}});
+document.addEventListener("pointerup",()=>document.querySelectorAll("tr[data-sprow][draggable=true]").forEach(r=>{if(!r.classList.contains("dragging"))r.draggable=false}));
+document.addEventListener("dragstart",e=>{const tr=e.target.closest&&e.target.closest("tr[data-sprow]");if(!tr||!tr.draggable)return;S.spDrag=tr.dataset.sprow;tr.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",S.spDrag)}catch(_){}});
+document.addEventListener("dragover",e=>{if(!S.spDrag)return;const tr=e.target.closest&&e.target.closest("tr[data-sprow]");if(!tr)return;e.preventDefault();e.dataTransfer.dropEffect="move";
+  const r=tr.getBoundingClientRect(),below=e.clientY>r.top+r.height/2;document.querySelectorAll("tr.drop-above,tr.drop-below").forEach(x=>{if(x!==tr)x.classList.remove("drop-above","drop-below")});tr.classList.toggle("drop-below",below);tr.classList.toggle("drop-above",!below)});
+document.addEventListener("drop",async e=>{if(!S.spDrag)return;const tr=e.target.closest&&e.target.closest("tr[data-sprow]");e.preventDefault();const from=S.spDrag;S.spDrag=null;
+  if(!tr||tr.dataset.sprow===from){spClear();return}const below=tr.classList.contains("drop-below"),c=spClsCur(),ids=spStus(c).map(s=>s.id).filter(x=>x!==from);
+  let at=ids.indexOf(tr.dataset.sprow);if(below)at++;ids.splice(at,0,from);spClear();
+  ids.forEach((id,i)=>{const st=S.students.find(x=>x.id===id);if(st)st.spOrder=i+1});render();
+  inflight++;setSync();try{for(let i=0;i<ids.length;i++){const st=S.students.find(x=>x.id===ids[i]);await Store.update("students",ids[i],{spOrder:i+1})}}catch(err){writeErr(err)}finally{inflight--;setSync()}});
+document.addEventListener("dragend",e=>{S.spDrag=null;spClear();document.querySelectorAll("tr[data-sprow][draggable=true]").forEach(r=>r.draggable=false)});
 document.addEventListener("submit",async e=>{if(e.target.id!=="spAddF")return;e.preventDefault();if(S.readOnly)return;const c=spClsCur(),title=$("#spNew").value.trim();if(!title){$("#spNew").focus();return}
   if(spUnits(c).some(i=>impNorm(i.title)===impNorm(title))){toast("這個單元已經有了");return}
   const p=$("#spPass").value,nid=Store.newId("items");
