@@ -938,7 +938,7 @@ function openAppt(key){const keys=Array.isArray(key)?key:[key];AP=keys;const a=a
     <div class="qainfo aplist">${all.map(x=>`<div><span class="tag" style="${cv(x.kind==="mk"?"sky":typeOf(x.i).color)}">${x.kind==="mk"?"補課":esc(typeOf(x.i).label)}</span> <b>${esc(x.kind==="mk"?x.title:x.i.title)}</b></div>`).join("")}${careChip(a.s)?`<div style="margin-top:6px">${careChip(a.s)}</div>`:""}</div>
     <div class="row"><span class="sub">日期</span>${dateField("apDate",a.date||S.agDate||todayStr())}<span class="sub">時間</span><input id="apTime" type="time" value="${esc(a.time||"17:00")}" step="300"></div>
     <div class="row between" style="border-top:2px dashed var(--line);padding-top:10px">${a.date?`<button class="btn sm danger" data-apgo="clear">取消約定</button>`:"<span></span>"}<div class="row"><button class="btn sm" data-apgo="saveics">儲存並加入行事曆</button><button class="btn sm primary" data-apgo="save">儲存</button></div></div>`;
-  $("#ap").hidden=false}
+  $("#ap").hidden=false;setTimeout(()=>{const t=$("#apTime");if(t)t.focus()},50)}
 async function doAppt(act){if(act==="close"){$("#ap").hidden=true;return}const all=(AP||[]).map(apptFor).filter(Boolean),a=all[0];if(!a)return;
   const date=act==="clear"?"":($("#apDate").value||todayStr()),time=act==="clear"?"":($("#apTime").value||"");
   for(const x of all){if(x.kind==="mk")await safe(()=>Store.update("makeups",x.m.id,{planDate:date,planTime:time}),"");
@@ -1631,6 +1631,7 @@ document.addEventListener("compositionstart",()=>{IME=true},true);
 document.addEventListener("compositionend",e=>{IME=false;IME_END=Date.now();if(e.target.id==="doneQ"){S.doneQ=e.target.value;setTimeout(render)}},true);
 document.addEventListener("keydown",e=>{
   if(e.isComposing||e.keyCode===229||IME||(e.key==="Enter"&&Date.now()-IME_END<80))return;
+  if(!$("#ap").hidden&&($("#ap").contains(e.target)||e.target===document.body)&&$("#dp")?.hidden!==false){if(e.key==="Enter"&&e.target.tagName!=="BUTTON"){e.preventDefault();doAppt("save");return}if(e.key==="Escape"){e.preventDefault();doAppt("close");return}}
   if(e.key==="Enter"&&(e.target.dataset.sxv||e.target.dataset.sxs||e.target.dataset.sxg)){const t=e.target,sel=t.dataset.sxv?`[data-sxv][data-sxk="${t.dataset.sxk}"]`:t.dataset.sxs?"[data-sxs]":"[data-sxg]",ins=[...document.querySelectorAll(sel)],n=ins[ins.indexOf(t)+(e.shiftKey?-1:1)];
     e.preventDefault();if(n){n.focus();n.select()}else t.blur();return}
   if((e.key==="Enter"||e.key==="Tab")&&e.target.dataset.sc){const ins=[...document.querySelectorAll("[data-sc]")],i=ins.indexOf(e.target),n=ins[e.shiftKey&&e.key==="Tab"?i-1:i+1];
