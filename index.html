@@ -471,6 +471,22 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .spc.ok{background:var(--mint-s)}.spc.fail{background:var(--red-s)}.spc.miss{background:#fff6e0}
 .spkey{margin-left:8px;white-space:nowrap}.spkey i{display:inline-block;width:12px;height:12px;border-radius:4px;margin:0 3px 0 8px;vertical-align:-1px}
 .spkey i.ok{background:var(--mint-s);border:1px solid var(--mint)}.spkey i.fail{background:var(--red-s);border:1px solid var(--red)}.spkey i.miss{background:#fff6e0;border:1px solid var(--amber)}
+.gsearch{position:relative;display:flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:10px 20px;margin-top:4px;box-shadow:0 4px 14px rgba(80,60,140,.06)}
+.gsearch:focus-within{border-color:var(--grape);box-shadow:0 0 0 4px var(--grape-s)}
+.gsearch>svg{width:20px;height:20px;color:var(--muted);flex:none}
+.gsearch input{flex:1;border:0!important;background:transparent!important;font-size:17px;padding:4px 0!important;box-shadow:none!important;outline:none}
+.gsearch kbd{font-family:var(--f-num);font-size:12px;color:var(--muted);border:1.5px solid var(--line);border-radius:6px;padding:0 6px}
+.gres{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:50;background:var(--surface);border:2px solid var(--line);border-radius:20px;box-shadow:0 18px 40px rgba(60,40,120,.18);max-height:min(70vh,620px);overflow:auto;padding:6px}
+.gitem{display:flex;align-items:flex-start;gap:12px;width:100%;text-align:left;background:none;border:0;border-radius:14px;padding:10px 12px;cursor:pointer}
+.gitem.on,.gitem:hover{background:var(--grape-s)}
+.gitem .av{flex:none;margin-top:2px}
+.gmain{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.gname{font-weight:800;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gn{font-size:12.5px;font-weight:800;color:#fff;background:var(--red);border-radius:999px;padding:1px 9px}
+.gok{font-size:12.5px;font-weight:800;color:var(--mint);background:var(--mint-s);border-radius:999px;padding:1px 9px}
+.gowe{display:flex;flex-wrap:wrap;gap:5px}
+.gowe .pill{font-size:12px}
+.garr{color:var(--muted);font-size:22px;align-self:center}
 .sphandle{cursor:grab;color:var(--muted);margin-right:8px;font-size:16px;user-select:none;padding:2px 4px;border-radius:6px}
 .sphandle:hover{background:var(--grape-s);color:var(--grape)}
 .sptbl tr.dragging{opacity:.4}
@@ -499,6 +515,7 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
       <div class="who"><span class="sync" id="sync"><i></i><span>連線中</span></span><span id="me"></span><button class="btn sm" id="logout" hidden>登出</button></div>
     </div>
     <div class="clsbar" id="classes"></div>
+    <div class="gsearch" id="gsearch" hidden><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg><input id="gq" type="search" autocomplete="off" placeholder="搜尋學生（中文或英文名，所有班級）：馬上看他還欠什麼" aria-label="全區搜尋學生"><kbd>/</kbd><div id="gres" class="gres" hidden></div></div>
   </div>
 </header>
 
@@ -653,6 +670,7 @@ function render(){
   $("#classes").innerHTML=!S.started?"":cl.length?cl.map(c=>`<button class="cls" style="${cv(clsColor(c))}" data-cls="${esc(c)}" aria-pressed="${c===S.cls&&!["care","done","school","speak"].includes(S.tab)}">${esc(c)}<span class="ct">${studentsOf(c).length}</span></button>`).join("")+`<span class="clsbreak"></span><button class="cls carebtn" data-gocare="1" aria-pressed="${S.tab==="care"}">📋 通知安親老師${(()=>{const n=careGroups().length;return n?`<span class="ct">${n}</span>`:""})()}</button><button class="cls donebtn" data-godone="1" aria-pressed="${S.tab==="done"}">✅ 每日完成紀錄</button><button class="cls sxbtn" data-goschool="1" aria-pressed="${S.tab==="school"}">🏫 學校段考</button><button class="cls spbtn" data-gospeak="1" aria-pressed="${S.tab==="speak"}">🎙 Speaklens 錄音${(()=>{const n=S.students.reduce((a,st)=>a+itemsOf(st.cls).filter(i=>i.type==="speak"&&status(i,st.id).out).length,0);return n?`<span class="ct">${n}</span>`:""})()}</button>`:`<div class="clsnone">還沒有班級，到「班級與學生」新增吧</div>`;
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===S.tab));
   let total=0;(S.cls&&S.cls!=="__all"?studentsOf(S.cls):S.students).forEach(s=>total+=outstanding(s).length);{const k=$("#mkN"),n=(S.makeups||[]).filter(m=>!m.done&&(!S.cls||S.cls==="__all"||S.students.find(x=>x.id===m.sid)?.cls===S.cls)).length;k.hidden=!n;k.textContent=n}{const k=$("#agN");if(k){const ap=apptsAll(),t=todayStr(),n=ap.filter(a=>a.date<=t).length;k.hidden=!n;k.textContent=n}}const mn=$("#missN");mn.hidden=!total;mn.textContent=total;
+  {const g=$("#gsearch");if(g)g.hidden=!S.started}
   if(!S.started)return;
   const ae=document.activeElement,keep=ae&&ae.dataset&&ae.dataset.k?{k:ae.dataset.k,s:ae.selectionStart,e:ae.selectionEnd,v:ae.value,ed:!!ae.dataset.keepv}:null;
   const v=$("#view");
@@ -2037,6 +2055,34 @@ document.addEventListener("input",e=>{const t=e.target;if(!t.dataset)return;
 document.addEventListener("focusout",e=>{const t=e.target;if(t.dataset&&(t.dataset.spsc||t.dataset.spwk)&&timers[t.dataset.spi]){clearTimeout(timers[t.dataset.spi]);flush(t.dataset.spi)}});
 document.addEventListener("keydown",e=>{const t=e.target;if(e.key!=="Enter"||!t.dataset||!(t.dataset.spsc||t.dataset.spwk))return;e.preventDefault();
   const key=t.dataset.spsc?"spsc":"spwk",all=[...document.querySelectorAll(`[data-${key}][data-spi="${CSS.escape(t.dataset.spi)}"]`)],ix=all.indexOf(t),nx=all[ix+(e.shiftKey?-1:1)];if(nx){nx.focus();nx.select?.()}});
+</script>
+<script>
+/* ================= 全區搜尋 ================= */
+S.gIx=0;
+const gNorm=t=>String(t||"").toLowerCase().replace(/\s+/g,"");
+function gMatch(q){q=gNorm(q);if(!q)return [];const sc=s=>{const n=gNorm(s.name);return n===q?0:n.startsWith(q)?1:n.split(/(?=[^\x00-\x7f])/).some(w=>w.startsWith(q))?2:3};
+  return S.students.filter(s=>gNorm(s.name).includes(q)).sort((a,b)=>sc(a)-sc(b)||a.name.localeCompare(b.name)).slice(0,12)}
+function gOweLabel(i,s){if(i.type==="makeup")return{t:"補課 "+(i.date?md(i.date):""),c:"abs"};const st=status(i,s.id);return{t:`${i.title}・${st.l}`,c:st.c==="fail"?"fail":"miss"}}
+function gDiary(s){const d=(S.diary||[]).filter(x=>x.cls===s.cls&&!x.deleted).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+  for(const x of d){const parts=[];if((x.absent||[]).includes(s.id))parts.push("請假");const miss=dyChecksOf(x).filter(c=>(c.nohw||[]).includes(s.id)).map(c=>c.name);if(miss.length)parts.push("未交 "+miss.join("、"));if((x.notes||{})[s.id])parts.push(x.notes[s.id]);if(parts.length)return `${md(x.date)} 聯絡簿：${parts.join("；")}`}return ""}
+function gRender(){const box=$("#gres"),inp=$("#gq");if(!box||!inp)return;const q=inp.value.trim();if(!q){box.hidden=true;box.innerHTML="";return}
+  const list=gMatch(q);S.gIx=Math.min(S.gIx,Math.max(0,list.length-1));
+  box.innerHTML=list.length?list.map((s,k)=>{const out=outstanding(s),dn=gDiary(s);return `<button class="gitem ${k===S.gIx?"on":""}" data-gstu="${s.id}">
+      <span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>
+      <span class="gmain"><span class="gname">${esc(s.name)} <span class="tag" style="${cv(clsColor(s.cls))}">${esc(s.cls)}</span>${out.length?`<span class="gn">${out.length} 項待補</span>`:`<span class="gok">全部完成</span>`}</span>
+      ${out.length?`<span class="gowe">${out.slice(0,5).map(i=>{const l=gOweLabel(i,s);return `<span class="pill p-${l.c}">${esc(l.t)}</span>`}).join("")}${out.length>5?`<span class="sub">…還有 ${out.length-5} 項</span>`:""}</span>`:""}
+      ${dn?`<span class="sub gdy">${esc(dn)}</span>`:""}</span><span class="garr">›</span></button>`}).join(""):`<div class="sub" style="padding:14px">找不到「${esc(q)}」</div>`;
+  box.hidden=false}
+function gOpen(id){const s=S.students.find(x=>x.id===id);if(!s)return;S.cls=s.cls;S.tab="student";S.stuId=s.id;S.q="";try{localStorage.setItem("gb.cls",S.cls)}catch(_){}
+  const inp=$("#gq");if(inp){inp.value="";inp.blur()}gRender();render();$("#nav")?.scrollIntoView({behavior:"smooth",block:"start"})}
+document.addEventListener("input",e=>{if(e.target.id==="gq"){S.gIx=0;gRender()}});
+document.addEventListener("focusin",e=>{if(e.target.id==="gq")gRender()});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-gstu]");if(b){gOpen(b.dataset.gstu);return}if(!e.target.closest("#gsearch")){const box=$("#gres");if(box)box.hidden=true}});
+document.addEventListener("keydown",e=>{if(e.target.id!=="gq")return;const items=[...document.querySelectorAll("#gres [data-gstu]")];
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();if(!items.length)return;S.gIx=(S.gIx+(e.key==="ArrowDown"?1:-1)+items.length)%items.length;items.forEach((x,k)=>x.classList.toggle("on",k===S.gIx));items[S.gIx].scrollIntoView({block:"nearest"})}
+  else if(e.key==="Enter"){if(e.isComposing||e.keyCode===229)return;e.preventDefault();const it=items[S.gIx]||items[0];if(it)gOpen(it.dataset.gstu)}
+  else if(e.key==="Escape"){e.target.value="";gRender();e.target.blur()}});
+document.addEventListener("keydown",e=>{if(e.key==="/"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||"")&&S.started){e.preventDefault();$("#gq")?.focus()}});
 </script>
 </body>
 </html>
