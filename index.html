@@ -646,7 +646,31 @@ function wantNames(){}
 /* ---------------- 寫入 ---------------- */
 const pend={},chain={},timers={};let inflight=0;
 function setSync(){const busy=inflight||Object.keys(timers).length;const el=$("#sync");el.className="sync"+(busy?" busy":"");el.lastChild.textContent=busy?"儲存中…":(S.started?"已同步":"連線中")}
+/* ===== 復原／重做（Cmd+Z / Cmd+Shift+Z） ===== */
+const UNDO=[],REDO=[];let undoing=false;
+function undoSnap(itemId,sid,val){const it=S.allI?.find(x=>x.id===itemId)||S.items.find(x=>x.id===itemId);if(!it)return null;const r=res(it,sid),prev={};
+  Object.keys(val).forEach(k=>{if(k==="mk"){prev.mk={};Object.keys(val.mk||{}).forEach(kk=>prev.mk[kk]=r.mk?.[kk]??null)}else prev[k]=r[k]===undefined?null:r[k]});return prev}
+function undoPush(e){const last=UNDO[UNDO.length-1],keys=Object.keys(e.next).sort().join();
+  if(last&&last.kind==="cell"&&e.kind==="cell"&&last.itemId===e.itemId&&last.sid===e.sid&&last.keys===keys&&Date.now()-last.t<2000){last.next={...last.next,...e.next};last.t=Date.now();return}
+  e.keys=keys;e.t=Date.now();UNDO.push(e);if(UNDO.length>200)UNDO.shift();REDO.length=0}
 function patch(itemId,sid,val,delay=500,logEntry=null){
+  if(!undoing&&!S.readOnly){const prev=undoSnap(itemId,sid,val);if(prev&&JSON.stringify(prev)!==JSON.stringify(Object.fromEntries(Object.keys(val).map(k=>[k,k==="mk"?Object.fromEntries(Object.keys(val.mk||{}).map(kk=>[kk,val.mk[kk]])):val[k]]))))undoPush({kind:"cell",itemId,sid,prev,next:val})}
+  return patch0(itemId,sid,val,delay,logEntry)}
+function undoLabel(e){const it=S.allI?.find(x=>x.id===e.itemId)||{},st=S.students.find(x=>x.id===e.sid);return e.kind==="item"?`「${it.title||"項目"}」`:`${st?.name||""}・${it.title||""}`}
+const fmtV=v=>v==null||v===""?"空白":v===true?"✓":String(v);
+async function undoApply(fromStack,toStack,useNext){const e=fromStack.pop();if(!e){toast(useNext?"沒有可以重做的動作":"沒有可以復原的動作");return}
+  undoing=true;try{
+    if(e.kind==="cell"){patch0(e.itemId,e.sid,useNext?e.next:e.prev,0);
+      const a=useNext?e.prev:e.next,b=useNext?e.next:e.prev,k=Object.keys(b).find(x=>x==="sc")||Object.keys(b)[0];
+      toast(`${useNext?"已重做":"已復原"}：${undoLabel(e)} ${k==="sc"?`${fmtV(a.sc)} → ${fmtV(b.sc)}`:""}`)}
+    else if(e.kind==="item"){await Store.update("items",e.itemId,{deleted:useNext,deletedAt:useNext?Date.now():null});toast(`${useNext?"已重做刪除":"已救回"}${undoLabel(e)}`)}
+    toStack.push(e);render()}catch(err){writeErr(err)}finally{undoing=false}}
+document.addEventListener("keydown",e=>{if(!(e.metaKey||e.ctrlKey)||e.altKey||(e.key||"").toLowerCase()!=="z"||!S.started||S.readOnly)return;
+  const a=document.activeElement,tag=a?.tagName||"";const isScore=a&&a.classList&&a.classList.contains("score");
+  if((tag==="TEXTAREA"||(tag==="INPUT"&&!isScore&&!/checkbox|radio|button/.test(a.type)))||a?.isContentEditable)return;
+  if(!$("#modal").hidden)return;e.preventDefault();if(isScore)a.blur();
+  if(e.shiftKey)undoApply(REDO,UNDO,true);else undoApply(UNDO,REDO,false)});
+function patch0(itemId,sid,val,delay=500,logEntry=null){
   S.overlay[itemId]=S.overlay[itemId]||{};const ov=S.overlay[itemId][sid]=S.overlay[itemId][sid]||{};
   pend[itemId]=pend[itemId]||{};const pd=pend[itemId][sid]=pend[itemId][sid]||{};
   Object.entries(val).forEach(([k,v])=>{if(k==="mk"){ov.mk={...(ov.mk||{}),...v};pd.mk={...(pd.mk||{}),...v}}else{ov[k]=v;pd[k]=v}});
@@ -753,7 +777,7 @@ function gridHtml0(item,stus){
     <div class="ring">${ring(doneN,stus.length,t.color)}<div><div class="rv">${doneN}<span class="sub"> / ${stus.length}</span></div><div class="sub">已完成</div></div></div></div>`)+`
     ${isRecS(item)?"":upBar(item)}
     ${isRecS(item)?`<div class="hint">${item.strict?"這項要求<b>每一題都達標</b>：左格填平均分數，右格填「幾題沒過」（全部都過就空白）。平均有過但有題目沒過，一樣算未達標、要重錄。":"這項<b>只看平均分數</b>，平均達到及格分就算完成。若這班要求每一題都要過，勾上面的「每一題都要達標」。"}</div>`:""}
-    ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
+    ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。打錯了按 ⌘Z 復原、⌘⇧Z 重做。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
     <div>${rows||`<div class="empty">這個班級還沒有學生</div>`}</div>
     ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
 }
@@ -1615,7 +1639,7 @@ document.addEventListener("click",async e=>{
   if(b.id==="allDone"){const item=curItem();studentsOf(S.cls).forEach(s=>{if(!res(item,s.id).st)patch(item.id,s.id,{st:"done"},50,{a:"st",v:"done"})});return render()}
   if(b.id==="editItem"){S.editItem=curItem()?.id;return render()}
   if(b.id==="editCancel"){S.editItem=null;return render()}
-  if(b.id==="delItem"){const item=curItem();if(await ask(`刪除「${item.title}」？會先移到回收桶，之後還能救回。`))safe(()=>Store.update("items",item.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶，可在「班級與學生」救回");return}
+  if(b.id==="delItem"){const item=curItem();if(await ask(`刪除「${item.title}」？會先移到回收桶，之後還能救回。`)){undoPush({kind:"item",itemId:item.id,next:{deleted:true}});safe(()=>Store.update("items",item.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶（按 ⌘Z 可以馬上復原）")}return}
   if(b.dataset.dels){const s=S.students.find(x=>x.id===b.dataset.dels);if(await ask(`把「${s.name}」從 ${s.cls} 名單移除？`,"確定移除"))safe(()=>Store.update("students",s.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),"已移到回收桶，可在「班級與學生」救回");return}
   if(b.dataset.copy)return copy(stuText(S.students.find(x=>x.id===b.dataset.copy)));
   if(b.id==="gLogin"){auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(err=>{if(err.code==="auth/popup-closed-by-user"||err.code==="auth/cancelled-popup-request")return;
@@ -2039,7 +2063,7 @@ function vSpeak(){const cl=classesList();if(!cl.length)return emptyBox("還沒�
   const io=`<div class="row" style="gap:8px">${us.length?`<button class="btn sm" data-spexp="1">⬇ 匯出 CSV</button>`:""}${S.readOnly?"":`<label class="btn sm sky" style="cursor:pointer">⬆ 匯入 CSV<input type="file" id="spImpFile" accept=".csv,.txt,text/csv" hidden></label>`}</div>`;
   const prev=S.imp.open&&S.tab==="speak"&&!S.readOnly?`<section class="card stack">${recImpHtml()}</section>`:"";
   return `${prev}<section class="card stack"><div class="row between"><h3>🎙 Speaklens 錄音登記</h3><div class="row" style="gap:12px"><span class="sub">直接在表格輸入，自動儲存</span>${io}</div></div>${chips}${add}
-      <div class="hint">每格填<b>平均分數</b>；有勾「逐題」的單元，右邊小格填<b>幾題沒過</b>（全部過就空白）。沒錄音留空白。按 Enter 跳到下一位。按住名字左邊的 ⠿ 可以拖曳調整學生順序，按住單元上方的 ⠿ 可以左右拖曳單元，× 可以刪除單元。重錄、請假請點單元名稱進登記頁。<span class="spkey"><i class="ok"></i>完成 <i class="fail"></i>未達標 <i class="miss"></i>未錄音</span></div>
+      <div class="hint">每格填<b>平均分數</b>；有勾「逐題」的單元，右邊小格填<b>幾題沒過</b>（全部過就空白）。沒錄音留空白。按 Enter 跳到下一位，打錯按 ⌘Z 復原。按住名字左邊的 ⠿ 可以拖曳調整學生順序，按住單元上方的 ⠿ 可以左右拖曳單元，× 可以刪除單元。重錄、請假請點單元名稱進登記頁。<span class="spkey"><i class="ok"></i>完成 <i class="fail"></i>未達標 <i class="miss"></i>未錄音</span></div>
       ${table}</section>
     <section class="card stack"><div class="row between"><h3>還沒完成的學生</h3><select id="spF" aria-label="篩選班級"><option value="all">全部班級</option>${cl.map(k=>`<option value="${esc(k)}" ${f===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
       ${secs||`<div class="sub">目前沒有未完成的 Speaklens 🎉</div>`}</section>`}
@@ -2056,7 +2080,7 @@ document.addEventListener("change",async e=>{const t=e.target;if(t.id!=="spImpFi
 /* 單元：刪除、拖曳排序 */
 document.addEventListener("click",async e=>{const b=e.target.closest("[data-spdel]");if(!b||S.readOnly)return;const i=S.items.find(x=>x.id===b.dataset.spdel);if(!i)return;
   const n=Object.values(i.results||{}).filter(r=>r&&r.sc!=null).length;
-  if(await ask(`刪除單元「${i.title}」？${n?`裡面有 ${n} 位學生的分數，`:""}會先移到回收桶，之後可在「班級與學生」救回。`))safe(()=>Store.update("items",i.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),`已刪除「${i.title}」`)});
+  if(await ask(`刪除單元「${i.title}」？${n?`裡面有 ${n} 位學生的分數，`:""}會先移到回收桶，之後可在「班級與學生」救回。`)){undoPush({kind:"item",itemId:i.id,next:{deleted:true}});safe(()=>Store.update("items",i.id,{deleted:true,deletedAt:Date.now(),deletedBy:ME||null}),`已刪除「${i.title}」（按 ⌘Z 可以馬上復原）`)}});
 const spColClear=()=>document.querySelectorAll("th.dropl,th.dropr,th.cdragging").forEach(x=>x.classList.remove("dropl","dropr","cdragging"));
 document.addEventListener("pointerdown",e=>{const h=e.target.closest(".spchandle");if(h&&!S.readOnly){const th=h.closest("th[data-spcol]");if(th)th.draggable=true}});
 document.addEventListener("dragstart",e=>{const th=e.target.closest&&e.target.closest("th[data-spcol]");if(!th||!th.draggable)return;S.spColDrag=th.dataset.spcol;th.classList.add("cdragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",S.spColDrag)}catch(_){}});
