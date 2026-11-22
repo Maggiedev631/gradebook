@@ -27,4 +27,6 @@ jobs:
         env:
           FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          LINE_TO: ${{ secrets.LINE_TO }}
           PUSH_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test }}

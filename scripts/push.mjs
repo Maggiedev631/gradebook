@@ -3,9 +3,10 @@
 //   早上今日行程、約的時間前提醒、晚上未完成提醒
 import admin from "firebase-admin";
 
-const SA = process.env.FIREBASE_SA, TOPIC = process.env.NTFY_TOPIC;
+const SA = process.env.FIREBASE_SA, TOPIC = process.env.NTFY_TOPIC, LINE_TOKEN = process.env.LINE_TOKEN, LINE_TO = process.env.LINE_TO;
+const USE_LINE = !!(LINE_TOKEN && LINE_TO);
 const AM = process.env.PUSH_AM || "07:30", PM = process.env.PUSH_PM || "21:00", BEFORE = Number(process.env.PUSH_BEFORE || 10);
-if (!SA || !TOPIC) { console.log("尚未設定 FIREBASE_SA 或 NTFY_TOPIC，略過。"); process.exit(0); }
+if (!SA || !(TOPIC || USE_LINE)) { console.log("尚未設定 FIREBASE_SA，或 LINE／ntfy 其中一種，略過。"); process.exit(0); }
 
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(SA)) });
 const db = admin.firestore();
@@ -22,6 +23,11 @@ const apptTs = a => new Date(`${a.d}T${a.t}:00+08:00`).getTime();
 const line = a => `${a.t ? a.t + " " : ""}${a.n}（${a.c}）${a.w} ${a.x}`.trim();
 
 async function send({ title, message, tags = [], priority = 3, at = null }) {
+  if (USE_LINE) {
+    const r = await fetch("https://api.line.me/v2/bot/message/push", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + LINE_TOKEN }, body: JSON.stringify({ to: LINE_TO, messages: [{ type: "text", text: `【${title}】\n${message}`.slice(0, 4900) }] }) });
+    if (!r.ok) throw new Error("LINE " + r.status + " " + (await r.text()).slice(0, 200));
+    return;
+  }
   const body = { topic: TOPIC, title, message, tags, priority };
   if (at && at > Date.now() + 15000) body.delay = String(Math.floor(at / 1000));
   const r = await fetch("https://ntfy.sh/", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -68,7 +74,8 @@ if (nowMin >= toMin(AM) && nowMin < 12 * 60 && !sent["am-" + today]) {
 for (const a of todayA) {
   const m = toMin(a.t); if (m == null) continue;
   const left = m - nowMin, key = `rm-${a.k}-${a.d}-${a.t}`;
-  if (left <= 40 && left >= -5 && !sent[key]) {
+  const win = USE_LINE ? left <= BEFORE + 5 : left <= 40;
+  if (win && left >= -5 && !sent[key]) {
     await send({ title: `⏰ ${a.t} ${a.n} 要來${a.w}`, message: `${a.n}（${a.c}）\n${a.w}：${a.x}`, tags: ["alarm_clock"], priority: 4, at: apptTs(a) - BEFORE * 60000 });
     mark(key);
   }
