@@ -1,0 +1,30 @@
+name: 手機推播
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "送一則測試推播"
+        type: boolean
+        default: true
+concurrency:
+  group: push
+  cancel-in-progress: false
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save --no-audit --no-fund firebase-admin@12
+      - run: node scripts/push.mjs
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          PUSH_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test }}
