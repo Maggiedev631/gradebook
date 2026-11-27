@@ -471,6 +471,7 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .spc.ok{background:var(--mint-s)}.spc.fail{background:var(--red-s)}.spc.miss{background:#fff6e0}
 .spkey{margin-left:8px;white-space:nowrap}.spkey i{display:inline-block;width:12px;height:12px;border-radius:4px;margin:0 3px 0 8px;vertical-align:-1px}
 .spkey i.ok{background:var(--mint-s);border:1px solid var(--mint)}.spkey i.fail{background:var(--red-s);border:1px solid var(--red)}.spkey i.miss{background:#fff6e0;border:1px solid var(--amber)}
+.hrow .reg{color:var(--muted);font-size:12.5px;margin-left:4px}
 .gsearch{position:relative;display:flex;align-items:center;gap:10px;background:var(--surface);border:2px solid var(--line);border-radius:999px;padding:10px 20px;margin-top:4px;box-shadow:0 4px 14px rgba(80,60,140,.06)}
 .gsearch:focus-within{border-color:var(--grape);box-shadow:0 0 0 4px var(--grape-s)}
 .gsearch>svg{width:20px;height:20px;color:var(--muted);flex:none}
@@ -782,9 +783,14 @@ function gridHtml0(item,stus){
     ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
 }
 
+const regTxt=(at,by)=>at?`<span class="reg">${esc(fmtTs(at).slice(5))}${by?` · ${esc(who(by))}`:""} 登記</span>`:"";
+function lastAct(i,s){if(i._mk)return i._mk.doneAt||i._mk.updatedAt||i._mk.createdAt||0;const r=res(i,s.id);let t=0;logs(r).forEach(x=>{if(x.at>t)t=x.at});makeups(r).forEach(m=>{if((m.at||0)>t)t=m.at});return t}
 function histLine(i,s,act){const st=status(i,s.id),t=typeOf(i),r=res(i,s.id),mks=kindOf(i)==="score"?makeups(r):[];
-  let detail="";if(kindOf(i)==="score"&&mks.length)detail=`<div class="sub">原 ${r.st==="absent"?"缺考":esc(r.sc??"—")}　${mks.map(m=>`${md(m.date)} 補考 ${esc(m.sc)}`).join("　")}</div>`;
-  if(kindOf(i)==="done"&&r.st==="done"){const l=logs(r).filter(x=>x.a==="st"&&x.v==="done").pop();if(l)detail=`<div class="sub">完成登記：${fmtTs(l.at)}</div>`}
+  let detail="";
+  if(kindOf(i)==="score"){const l=logs(r).filter(x=>x.a==="score"||x.a==="st").pop();
+    if(mks.length)detail=`<div class="sub">原 ${r.st==="absent"?"缺考":esc(r.sc??"—")}${l?" "+regTxt(l.at,l.by):""}</div>${mks.map(m=>`<div class="sub">${md(m.date)} 補考 <b>${esc(m.sc)}</b> ${regTxt(m.at,m.by)}</div>`).join("")}`;
+    else if(l&&(r.sc!=null||r.st))detail=`<div class="sub">${regTxt(l.at,l.by)}</div>`}
+  if(kindOf(i)==="done"&&r.st==="done"){const l=logs(r).filter(x=>x.a==="st"&&x.v==="done").pop();if(l)detail=`<div class="sub">完成登記：${fmtTs(l.at)}${l.by?` · ${esc(who(l.by))}`:""}</div>`}
   return `<div class="hrow"><span class="d">${md(i.date)}</span><span class="tt"><span class="tag" style="${cv(t.color)}">${t.label}</span> ${esc(i.title)}${detail}</span><span class="pill p-${st.c}">${esc(st.l)}${st.c==="ok"&&t.kind==="score"&&i.full?" / "+i.full:""}</span>${act&&!S.readOnly?`<button class="btn sm mint qabtn" data-qa="${i.id}|${s.id}">快速登記</button>`:""}</div>`}
 
 function vStudent(){
@@ -794,7 +800,7 @@ function vStudent(){
   if(!pool.find(s=>s.id===S.stuId))S.stuId=pool[0]?.id||null;
   const btns=pool.map(s=>{const n=outstanding(s).length;return `<button class="sbtn" data-stu="${s.id}" aria-pressed="${s.id===S.stuId}"><span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>${esc(s.name)}${q?` <span class="sub">${esc(s.cls)}</span>`:""}${n?`<span class="c">${n}</span>`:""}</button>`}).join("");
   const s=S.students.find(x=>x.id===S.stuId);let card="";
-  if(s){const its=itemsOf(s.cls),out=outstanding(s),allH=[...its,...makeupsOf(s,true).map(mkItem)].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  if(s){const its=itemsOf(s.cls),out=outstanding(s),allH=[...its,...makeupsOf(s,true).map(mkItem)].sort((a,b)=>S.histSort==="date"?(b.date||"").localeCompare(a.date||""):(lastAct(b,s)-lastAct(a,s))||(b.date||"").localeCompare(a.date||""));
     const scored=its.filter(i=>kindOf(i)==="score").map(i=>({i,st:status(i,s.id)})).filter(x=>x.st.sc!=null);
     const avg=scored.length?(scored.reduce((a,x)=>a+(Number(x.st.sc)/(Number(x.i.full)||100)*100),0)/scored.length).toFixed(1):"—";
     const recs=its.filter(i=>kindOf(i)==="done"),recDone=recs.filter(i=>!status(i,s.id).out).length;
@@ -802,7 +808,7 @@ function vStudent(){
       <div class="row"><button class="btn sm" data-stulog="${s.id}">看詳細紀錄</button><button class="btn sky sm" data-copy="${s.id}">複製待補清單</button><button class="btn primary sm" data-card="${s.id}">家長通知卡</button></div></div>
       <div class="kpis"><div class="kpi" style="${cv(out.length?"pink":"mint")}"><div class="label">待補</div><div class="v">${out.length}</div></div><div class="kpi" style="${cv("sky")}"><div class="label">考試平均</div><div class="v">${avg}</div></div><div class="kpi" style="${cv("yellow")}"><div class="label">錄音／作業</div><div class="v">${recDone}<span style="font-size:15px"> / ${recs.length}</span></div></div></div>
       ${out.length?`<div class="owe stack" style="gap:4px"><h3>還欠這些</h3><div class="hist">${out.map(i=>histLine(i,s,true)).join("")}</div></div>`:`<div class="pill p-ok" style="justify-self:start;padding:7px 16px;font-size:14px">全部完成，好棒！</div>`}
-      <div class="stack" style="gap:4px"><h3>全部紀錄</h3><div class="hist">${allH.map(i=>histLine(i,s)).join("")||`<div class="sub">尚無評量</div>`}</div></div></section>`}
+      <div class="stack" style="gap:4px"><div class="row between"><h3>全部紀錄</h3><div class="seg sm"><button data-histsort="act" aria-pressed="${S.histSort!=="date"}">最近登記在上</button><button data-histsort="date" aria-pressed="${S.histSort==="date"}">依考試日期</button></div></div><div class="hist">${allH.map(i=>histLine(i,s)).join("")||`<div class="sub">尚無評量</div>`}</div></div></section>`}
   return `<div class="cols"><section class="card stack"><div class="search"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg><input id="q" type="search" data-k="q" data-keepv="1" placeholder="搜尋姓名（跨所有班級）" value="${esc(S.q)}"></div>
     <div class="label">${q?"搜尋結果":esc(S.cls||"")+" 學生"}</div><div class="slist">${btns||`<span class="sub">找不到學生</span>`}</div></section>${card||`<section class="card empty">選一位學生查看紀錄</section>`}</div>`;
 }
@@ -2118,6 +2124,8 @@ document.addEventListener("keydown",e=>{const t=e.target;if(e.key!=="Enter"||!t.
 </script>
 <script>
 /* ================= 全區搜尋 ================= */
+document.addEventListener("click",e=>{const b=e.target.closest("[data-histsort]");if(b){S.histSort=b.dataset.histsort;try{localStorage.setItem("gb.hsort",S.histSort)}catch(_){}render()}});
+try{S.histSort=localStorage.getItem("gb.hsort")||"act"}catch(_){S.histSort="act"}
 S.gIx=0;
 const gNorm=t=>String(t||"").toLowerCase().replace(/\s+/g,"");
 function gMatch(q){q=gNorm(q);if(!q)return [];const sc=s=>{const n=gNorm(s.name);return n===q?0:n.startsWith(q)?1:n.split(/(?=[^\x00-\x7f])/).some(w=>w.startsWith(q))?2:3};
