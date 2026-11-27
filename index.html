@@ -488,6 +488,11 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .gowe{display:flex;flex-wrap:wrap;gap:5px}
 .gowe .pill{font-size:12px}
 .garr{color:var(--muted);font-size:22px;align-self:center}
+.grhandle{cursor:grab;color:var(--muted);margin-right:10px;font-size:16px;user-select:none;padding:2px 4px;border-radius:6px}
+.grhandle:hover{background:var(--grape-s);color:var(--grape)}
+.srow.dragging{opacity:.4}
+.srow.drop-above{box-shadow:inset 0 3px 0 var(--grape)}
+.srow.drop-below{box-shadow:inset 0 -3px 0 var(--grape)}
 .sphandle{cursor:grab;color:var(--muted);margin-right:8px;font-size:16px;user-select:none;padding:2px 4px;border-radius:6px}
 .sphandle:hover{background:var(--grape-s);color:var(--grape)}
 .sptbl tr.dragging{opacity:.4}
@@ -773,7 +778,7 @@ function gridHtml0(item,stus){
     }else{
       ctl=`<span class="seg"><button class="done" data-st="done" data-sid="${s.id}" aria-pressed="${r.st==="done"}" ${ro}>完成</button><button class="miss" data-st="" data-sid="${s.id}" aria-pressed="${!r.st}" ${ro}>未交</button><button class="abs" data-st="absent" data-sid="${s.id}" aria-pressed="${r.st==="absent"}" ${ro}>請假</button></span>`;
     }
-    return `<div class="srow"><span class="nm">${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}</span>${extra}</div>`}).join("");
+    return `<div class="srow" data-grrow="${s.id}"><span class="nm">${S.readOnly?"":`<span class="grhandle" title="按住拖曳，調整學生順序" aria-hidden="true">⠿</span>`}${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}</span>${extra}</div>`}).join("");
   return (S.editItem===item.id&&!S.readOnly?editItemHtml(item):`<div class="sheet-h" style="${cv(t.color)}"><div class="stack" style="gap:4px"><div><span class="tag">${t.label}</span>${S.readOnly?"":` <button class="btn sm" id="editItem" style="padding:3px 12px;margin-left:4px">✎ 編輯</button>`} <span class="sub">${esc(item.date||"")}${item.full?` · 滿分 ${item.full}`:""}${hasPass(item)?` · 及格 ${item.pass}`:""}</span></div><h2>${esc(item.title)}</h2>${kind==="score"?`<label class="chk nr"><input type="checkbox" data-noretake="${item.id}" ${item.noRetake?"checked":""} ${ro}> 不需補考（只記錄成績、通知家長）</label>${isRecS(item)?`<label class="chk nr"><input type="checkbox" data-strict="${item.id}" ${item.strict?"checked":""} ${ro}> 每一題都要達標（不只看平均分數）</label>`:""}`:""}</div>
     <div class="ring">${ring(doneN,stus.length,t.color)}<div><div class="rv">${doneN}<span class="sub"> / ${stus.length}</span></div><div class="sub">已完成</div></div></div></div>`)+`
     ${isRecS(item)||item.type==="hw"?"":upBar(item)}
@@ -2096,6 +2101,19 @@ document.addEventListener("drop",async e=>{if(!S.spColDrag)return;e.preventDefau
   if(!th||th.dataset.spcol===from){spColClear();return}const right=th.classList.contains("dropr"),ids=spUnits(spClsCur()).map(i=>i.id).filter(x=>x!==from);let at=ids.indexOf(th.dataset.spcol);if(right)at++;ids.splice(at,0,from);spColClear();
   ids.forEach((id,k)=>{const i=S.items.find(x=>x.id===id);if(i)i.spOrd=k+1});render();inflight++;setSync();try{await spSaveOrd(ids)}catch(err){writeErr(err)}finally{inflight--;setSync()}});
 document.addEventListener("dragend",()=>{S.spColDrag=null;spColClear();document.querySelectorAll("th[data-spcol][draggable=true]").forEach(x=>x.draggable=false)});
+/* 登記成績：拖曳調整學生順序（存成座號順序，全站一致） */
+const grClear=()=>document.querySelectorAll(".srow.drop-above,.srow.drop-below,.srow.dragging").forEach(r=>r.classList.remove("drop-above","drop-below","dragging"));
+document.addEventListener("pointerdown",e=>{const h=e.target.closest(".grhandle");if(h&&!S.readOnly){const r=h.closest("[data-grrow]");if(r)r.draggable=true}});
+document.addEventListener("pointerup",()=>document.querySelectorAll("[data-grrow][draggable=true]").forEach(r=>{if(!r.classList.contains("dragging"))r.draggable=false}));
+document.addEventListener("dragstart",e=>{const r=e.target.closest&&e.target.closest("[data-grrow]");if(!r||!r.draggable)return;S.grDrag=r.dataset.grrow;r.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",S.grDrag)}catch(_){}});
+document.addEventListener("dragover",e=>{if(!S.grDrag)return;const r=e.target.closest&&e.target.closest("[data-grrow]");if(!r)return;e.preventDefault();e.dataTransfer.dropEffect="move";
+  const b=r.getBoundingClientRect(),below=e.clientY>b.top+b.height/2;document.querySelectorAll(".srow.drop-above,.srow.drop-below").forEach(x=>{if(x!==r)x.classList.remove("drop-above","drop-below")});r.classList.toggle("drop-below",below);r.classList.toggle("drop-above",!below)});
+document.addEventListener("drop",async e=>{if(!S.grDrag)return;e.preventDefault();const r=e.target.closest&&e.target.closest("[data-grrow]"),from=S.grDrag;S.grDrag=null;
+  const fs0=S.students.find(x=>x.id===from);if(!r||!fs0||r.dataset.grrow===from){grClear();return}
+  const below=r.classList.contains("drop-below"),ids=studentsOf(fs0.cls).map(x=>x.id).filter(x=>x!==from);let at=ids.indexOf(r.dataset.grrow);if(at<0){grClear();return}if(below)at++;ids.splice(at,0,from);grClear();
+  const ch=[];ids.forEach((id,k)=>{const st=S.students.find(x=>x.id===id);if(st&&Number(st.seat)!==k+1){st.seat=k+1;ch.push([id,k+1])}});render();
+  inflight++;setSync();try{for(const[id,n]of ch)await Store.update("students",id,{seat:n})}catch(err){writeErr(err)}finally{inflight--;setSync()}});
+document.addEventListener("dragend",()=>{S.grDrag=null;grClear();document.querySelectorAll("[data-grrow][draggable=true]").forEach(r=>r.draggable=false)});
 /* 拖曳調整 Speaklens 學生順序 */
 const spClear=()=>document.querySelectorAll("tr.drop-above,tr.drop-below,tr.dragging").forEach(r=>r.classList.remove("drop-above","drop-below","dragging"));
 document.addEventListener("pointerdown",e=>{const h=e.target.closest(".sphandle");if(h&&!S.readOnly){const tr=h.closest("tr[data-sprow]");if(tr)tr.draggable=true}});
