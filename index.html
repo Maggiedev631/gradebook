@@ -488,6 +488,7 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .gowe{display:flex;flex-wrap:wrap;gap:5px}
 .gowe .pill{font-size:12px}
 .garr{color:var(--muted);font-size:22px;align-self:center}
+.joinf{margin-top:8px;padding:10px;border-radius:12px;background:var(--grape-s);display:grid;gap:6px}
 .exbtn{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 8px;border-radius:8px;cursor:pointer;opacity:.5}
 .srow:hover .exbtn{opacity:1}.exbtn:hover{background:var(--red-s);color:var(--red)}
 .exlist{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--sunk)}
@@ -626,9 +627,11 @@ function logs(r){return Object.entries(r.log||{}).map(([k,l])=>({k,...l})).sort(
 const isRecS=i=>!!i&&(i.type==="recs"||i.type==="speak");
 const recWord=t=>String(t).replace(/缺考/g,"請假").replace(/補考/g,"重錄").replace(/未登記/g,"未錄音");
 function status(item,sid){const r=status0(item,sid);if(isRecS(item))r.l=recWord(r.l);return r}
+function preJoin(item,sid){const st=S.students.find(x=>x.id===sid);if(!st||!st.joinDate||!item.date||item.date>=st.joinDate)return false;const r=res(item,sid);return r.sc==null&&!r.st&&!makeups(r).length}
 function status0(item,sid){
   if(item._mk){const m=item._mk;if(m.done)return{c:"ok",l:"已補課"+(m.doneDate?" "+md(m.doneDate):"")};const pg=mkProg(m);if(pg.n)return{c:"abs",l:`已補 ${pg.n}/${pg.lines.length}`+(m.planDate?` · 預計 ${md(m.planDate)}`:""),out:true};return{c:"miss",l:m.planDate?"預計 "+md(m.planDate)+(m.planTime?" "+m.planTime:"")+" 補課":"未補課",out:true}}
   if(res(item,sid).exempt)return{c:"ex",l:kindOf(item)==="done"?"不用做":"不用考"};
+  if(preJoin(item,sid))return{c:"ex",l:"入班前・不用"+(kindOf(item)==="done"?"做":"考")};
   const r=res(item,sid),kind=kindOf(item);
   if(kind==="score"){
     const mks=makeups(r),last=mks[mks.length-1];
@@ -771,7 +774,7 @@ function editItemHtml(item){const kind=kindOf(item),opts=TYPES.filter(t=>t[0]===
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="editCancel">取消</button><button class="btn primary" type="submit">儲存修改</button></div></form>`}
 function gridHtml(item,stus){const h=gridHtml0(item,stus);return isRecS(item)?recWord(h):h}
 function gridHtml0(item,stusAll){
-  const exS=stusAll.filter(s=>res(item,s.id).exempt),stus=stusAll.filter(s=>!res(item,s.id).exempt);
+  const isEx=s=>res(item,s.id).exempt||preJoin(item,s.id),exS=stusAll.filter(isEx),stus=stusAll.filter(s=>!isEx(s));
   const t=typeOf(item),kind=t.kind,ro=S.readOnly?"disabled":"";
   const doneN=stus.filter(s=>!status(item,s.id).out).length;
   const rows=stus.map((s,ix)=>{const r=res(item,s.id),st=status(item,s.id);let ctl,extra="";
@@ -792,7 +795,7 @@ function gridHtml0(item,stusAll){
     ${isRecS(item)?`<div class="hint">${item.strict?"這項要求<b>每一題都達標</b>：左格填平均分數，右格填「幾題沒過」（全部都過就空白）。平均有過但有題目沒過，一樣算未達標、要重錄。":"這項<b>只看平均分數</b>，平均達到及格分就算完成。若這班要求每一題都要過，勾上面的「每一題都要達標」。"}</div>`:""}
     ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。打錯了按 ⌘Z 復原、⌘⇧Z 重做。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
     <div>${rows||`<div class="empty">這個班級還沒有學生</div>`}</div>
-    ${exS.length?`<div class="exlist"><span class="sub">${kind==="done"?"這項不用做":"這項不用考"}：</span>${exS.map(s=>`<span class="exchip">${esc(s.name)}${S.readOnly?"":`<button data-unexempt="${s.id}" title="加回這項">↺ 加回</button>`}</span>`).join("")}</div>`:""}
+    ${exS.length?`<div class="exlist"><span class="sub">${kind==="done"?"這項不用做":"這項不用考"}：</span>${exS.map(s=>`<span class="exchip">${esc(s.name)}${preJoin(item,s.id)?`<span class="sub">（${md(S.students.find(x=>x.id===s.id).joinDate)} 入班）</span>`:S.readOnly?"":`<button data-unexempt="${s.id}" title="加回這項">↺ 加回</button>`}</span>`).join("")}</div>`:""}
     ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
 }
 
@@ -835,7 +838,7 @@ function vMissing(){
   let lastG=null;const ncol=all?4:3;
   ents.forEach(({c,s,out})=>{cnt++;
     if(S.missGroup){const g=careGroup(s);if(g!==lastG){lastG=g;const n=ents.filter(e=>careGroup(e.s)===g).length;rows+=`<tr class="grp"><td colspan="${ncol}"><span class="carechip ${g===OUTSIDE?"out":g==="未設定安親班"?"none":""}">${g===OUTSIDE?"班外生・直接聯絡家長":g==="未設定安親班"?"未設定安親班":"安親："+esc(g)}</span> <span class="sub">${n} 位</span></td></tr>`}}
-    rows+=`<tr><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="sbtn" data-go="${s.id}"><span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>${esc(s.name)}</button><button class="btn sm" data-card="${s.id}" title="家長通知卡" aria-label="${esc(s.name)} 家長通知卡">卡</button></div>${S.missGroup&&!isOutside(s)?"":careChip(s)?`<div style="margin-top:4px">${careChip(s)}</div>`:""}</td>${all?`<td><span class="tag" style="${cv(clsColor(c))}">${esc(c)}</span></td>`:""}<td class="num">${out.length}</td><td><div class="misslist">${out.map(i=>{const st=status(i,s.id);return `<button class="pill p-${st.c} qapill" data-qa="${i.id}|${s.id}" title="點一下快速登記">${i._mk?"補課："+esc(i.title.split("\n")[0]):esc(i.title)}${st.c!=="miss"?" · "+esc(st.l):""}</button>`}).join("")}</div></td></tr>`});
+    rows+=`<tr><td><div class="row" style="gap:6px;flex-wrap:nowrap"><button class="sbtn" data-go="${s.id}"><span class="av" style="${cv(stuColor(s))}">${esc(initial(s.name))}</span>${esc(s.name)}</button><button class="btn sm" data-card="${s.id}" title="家長通知卡" aria-label="${esc(s.name)} 家長通知卡">卡</button>${S.readOnly?"":`<button class="btn sm" data-joinopen="${s.id}" title="新生：設定入班日，之前的都不用考">新生</button>`}</div>${S.joinOpen===s.id?`<form class="joinf" data-joinf="${s.id}"><div class="sub">${esc(s.name)} 哪一天入班？這天<b>之前</b>的考試、作業都不用補。</div><div class="row" style="gap:6px"><input type="date" class="joind" value="${esc(s.joinDate||todayStr())}"><button class="btn primary sm" type="submit">確定</button><button class="btn sm" type="button" data-joinopen="">取消</button></div></form>`:""}${S.missGroup&&!isOutside(s)?"":careChip(s)?`<div style="margin-top:4px">${careChip(s)}</div>`:""}</td>${all?`<td><span class="tag" style="${cv(clsColor(c))}">${esc(c)}</span></td>`:""}<td class="num">${out.length}</td><td><div class="misslist">${out.map(i=>{const st=status(i,s.id);return `<button class="pill p-${st.c} qapill" data-qa="${i.id}|${s.id}" title="點一下快速登記">${i._mk?"補課："+esc(i.title.split("\n")[0]):esc(i.title)}${st.c!=="miss"?" · "+esc(st.l):""}</button>`}).join("")}</div></td></tr>`});
   return `<section class="card stack"><div class="row between"><div><div class="label">${all?"全部班級":esc(S.cls)}</div><h2>${cnt?`還有 ${cnt} 位學生需要補交`:"大家都完成了！"}</h2></div>
      <div class="row"><select id="mt" aria-label="篩選"><option value="all">全部項目</option><option value="score" ${S.missType==="score"?"selected":""}>只看考試</option><option value="rec" ${S.missType==="rec"?"selected":""}>只看錄音／作業</option><option value="mk" ${S.missType==="mk"?"selected":""}>只看補課</option></select>
      <label class="chk"><input type="checkbox" id="mg" ${S.missGroup?"checked":""}> 依安親班分組</label><button class="btn sm" data-all>${all?"只看目前班級":"看全部班級"}</button><button class="btn sm" id="copyAll">複製清單</button>${all?"":`<button class="btn sm primary" id="zipCards">下載全班通知卡</button>`}</div></div>
@@ -2126,6 +2129,11 @@ document.addEventListener("dragend",()=>{S.grDrag=null;grClear();document.queryS
 document.addEventListener("click",e=>{const b=e.target.closest("[data-exempt],[data-unexempt]");if(!b||S.readOnly)return;const item=curItem();if(!item)return;
   const sid=b.dataset.exempt||b.dataset.unexempt,st=S.students.find(x=>x.id===sid),on=!!b.dataset.exempt;
   patch(item.id,sid,{exempt:on?true:null},50);render();toast(on?`${st?.name||""} 這項${kindOf(item)==="done"?"不用做":"不用考"}，已從名單移除（⌘Z 可復原）`:`已把 ${st?.name||""} 加回這項`)});
+/* 新生入班日 */
+document.addEventListener("click",e=>{const b=e.target.closest("[data-joinopen]");if(!b||S.readOnly)return;S.joinOpen=b.dataset.joinopen===S.joinOpen?null:(b.dataset.joinopen||null);render()});
+document.addEventListener("submit",async e=>{const f=e.target.closest("[data-joinf]");if(!f)return;e.preventDefault();const sid=f.dataset.joinf,d=f.querySelector(".joind").value,st=S.students.find(x=>x.id===sid);if(!d||!st)return;
+  const n=S.items.filter(i=>{if(i.cls!==st.cls||!i.date||i.date>=d||!status(i,sid).out)return false;const r=res(i,sid);return r.sc==null&&!r.st&&!makeups(r).length}).length;S.joinOpen=null;
+  await safe(()=>Store.update("students",sid,{joinDate:d}),`${st.name} 設為 ${md(d)} 入班，之前的 ${n} 項不用補了（已經有成績的照常保留）`);render()});
 /* 拖曳調整 Speaklens 學生順序 */
 const spClear=()=>document.querySelectorAll("tr.drop-above,tr.drop-below,tr.dragging").forEach(r=>r.classList.remove("drop-above","drop-below","dragging"));
 document.addEventListener("pointerdown",e=>{const h=e.target.closest(".sphandle");if(h&&!S.readOnly){const tr=h.closest("tr[data-sprow]");if(tr)tr.draggable=true}});
