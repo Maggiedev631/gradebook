@@ -488,6 +488,11 @@ details.newtop form{background:color-mix(in srgb,var(--pink-s) 35%,#fff);border:
 .gowe{display:flex;flex-wrap:wrap;gap:5px}
 .gowe .pill{font-size:12px}
 .garr{color:var(--muted);font-size:22px;align-self:center}
+.exbtn{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 8px;border-radius:8px;cursor:pointer;opacity:.5}
+.srow:hover .exbtn{opacity:1}.exbtn:hover{background:var(--red-s);color:var(--red)}
+.exlist{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--sunk)}
+.exchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--line);border-radius:999px;padding:3px 6px 3px 12px;font-weight:700;font-size:14px}
+.exchip button{border:0;background:var(--grape-s);color:var(--grape);border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:700;cursor:pointer}
 .grhandle{cursor:grab;color:var(--muted);margin-right:10px;font-size:16px;user-select:none;padding:2px 4px;border-radius:6px}
 .grhandle:hover{background:var(--grape-s);color:var(--grape)}
 .srow.dragging{opacity:.4}
@@ -623,6 +628,7 @@ const recWord=t=>String(t).replace(/缺考/g,"請假").replace(/補考/g,"重錄
 function status(item,sid){const r=status0(item,sid);if(isRecS(item))r.l=recWord(r.l);return r}
 function status0(item,sid){
   if(item._mk){const m=item._mk;if(m.done)return{c:"ok",l:"已補課"+(m.doneDate?" "+md(m.doneDate):"")};const pg=mkProg(m);if(pg.n)return{c:"abs",l:`已補 ${pg.n}/${pg.lines.length}`+(m.planDate?` · 預計 ${md(m.planDate)}`:""),out:true};return{c:"miss",l:m.planDate?"預計 "+md(m.planDate)+(m.planTime?" "+m.planTime:"")+" 補課":"未補課",out:true}}
+  if(res(item,sid).exempt)return{c:"ex",l:kindOf(item)==="done"?"不用做":"不用考"};
   const r=res(item,sid),kind=kindOf(item);
   if(kind==="score"){
     const mks=makeups(r),last=mks[mks.length-1];
@@ -764,7 +770,8 @@ function editItemHtml(item){const kind=kindOf(item),opts=TYPES.filter(t=>t[0]===
     <label class="chk"><input type="checkbox" id="eiNoRetake" ${item.noRetake?"checked":""}> 不需補考（只記錄成績、通知家長）</label>`:""}
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" id="editCancel">取消</button><button class="btn primary" type="submit">儲存修改</button></div></form>`}
 function gridHtml(item,stus){const h=gridHtml0(item,stus);return isRecS(item)?recWord(h):h}
-function gridHtml0(item,stus){
+function gridHtml0(item,stusAll){
+  const exS=stusAll.filter(s=>res(item,s.id).exempt),stus=stusAll.filter(s=>!res(item,s.id).exempt);
   const t=typeOf(item),kind=t.kind,ro=S.readOnly?"disabled":"";
   const doneN=stus.filter(s=>!status(item,s.id).out).length;
   const rows=stus.map((s,ix)=>{const r=res(item,s.id),st=status(item,s.id);let ctl,extra="";
@@ -778,13 +785,14 @@ function gridHtml0(item,stus){
     }else{
       ctl=`<span class="seg"><button class="done" data-st="done" data-sid="${s.id}" aria-pressed="${r.st==="done"}" ${ro}>完成</button><button class="miss" data-st="" data-sid="${s.id}" aria-pressed="${!r.st}" ${ro}>未交</button><button class="abs" data-st="absent" data-sid="${s.id}" aria-pressed="${r.st==="absent"}" ${ro}>請假</button></span>`;
     }
-    return `<div class="srow" data-grrow="${s.id}"><span class="nm">${S.readOnly?"":`<span class="grhandle" title="按住拖曳，調整學生順序" aria-hidden="true">⠿</span>`}${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}</span>${extra}</div>`}).join("");
+    return `<div class="srow" data-grrow="${s.id}"><span class="nm">${S.readOnly?"":`<span class="grhandle" title="按住拖曳，調整學生順序" aria-hidden="true">⠿</span>`}${esc(s.name)}</span><span class="pill p-${st.c}">${esc(st.l)}</span><span class="ctl row">${ctl}${S.readOnly?"":`<button class="exbtn" tabindex="-1" data-exempt="${s.id}" title="${esc(s.name)} 這項${kind==="done"?"不用做":"不用考"}（從這項移除，可還原）" aria-label="${esc(s.name)} 從這項移除">×</button>`}</span>${extra}</div>`}).join("");
   return (S.editItem===item.id&&!S.readOnly?editItemHtml(item):`<div class="sheet-h" style="${cv(t.color)}"><div class="stack" style="gap:4px"><div><span class="tag">${t.label}</span>${S.readOnly?"":` <button class="btn sm" id="editItem" style="padding:3px 12px;margin-left:4px">✎ 編輯</button>`} <span class="sub">${esc(item.date||"")}${item.full?` · 滿分 ${item.full}`:""}${hasPass(item)?` · 及格 ${item.pass}`:""}</span></div><h2>${esc(item.title)}</h2>${kind==="score"?`<label class="chk nr"><input type="checkbox" data-noretake="${item.id}" ${item.noRetake?"checked":""} ${ro}> 不需補考（只記錄成績、通知家長）</label>${isRecS(item)?`<label class="chk nr"><input type="checkbox" data-strict="${item.id}" ${item.strict?"checked":""} ${ro}> 每一題都要達標（不只看平均分數）</label>`:""}`:""}</div>
     <div class="ring">${ring(doneN,stus.length,t.color)}<div><div class="rv">${doneN}<span class="sub"> / ${stus.length}</span></div><div class="sub">已完成</div></div></div></div>`)+`
     ${isRecS(item)||item.type==="hw"?"":upBar(item)}
     ${isRecS(item)?`<div class="hint">${item.strict?"這項要求<b>每一題都達標</b>：左格填平均分數，右格填「幾題沒過」（全部都過就空白）。平均有過但有題目沒過，一樣算未達標、要重錄。":"這項<b>只看平均分數</b>，平均達到及格分就算完成。若這班要求每一題都要過，勾上面的「每一題都要達標」。"}</div>`:""}
     ${kind==="score"?`<div class="hint">輸入成績自動儲存，按 Tab 或 Enter 跳下一位（Shift+Tab 回上一位）。打錯了按 ⌘Z 復原、⌘⇧Z 重做。缺考或未達標的學生旁會出現「補考」，補考成績和日期登記在那裡。</div>`:""}
     <div>${rows||`<div class="empty">這個班級還沒有學生</div>`}</div>
+    ${exS.length?`<div class="exlist"><span class="sub">${kind==="done"?"這項不用做":"這項不用考"}：</span>${exS.map(s=>`<span class="exchip">${esc(s.name)}${S.readOnly?"":`<button data-unexempt="${s.id}" title="加回這項">↺ 加回</button>`}</span>`).join("")}</div>`:""}
     ${S.readOnly?"":`<div class="row between" style="border-top:2px dashed var(--line);padding-top:12px">${kind==="done"?`<button class="btn mint sm" id="allDone">全部標記完成</button>`:"<span></span>"}<button class="btn sm danger" id="delItem">刪除此評量</button></div>`}`;
 }
 
@@ -2114,6 +2122,10 @@ document.addEventListener("drop",async e=>{if(!S.grDrag)return;e.preventDefault(
   const ch=[];ids.forEach((id,k)=>{const st=S.students.find(x=>x.id===id);if(st&&Number(st.seat)!==k+1){st.seat=k+1;ch.push([id,k+1])}});render();
   inflight++;setSync();try{for(const[id,n]of ch)await Store.update("students",id,{seat:n})}catch(err){writeErr(err)}finally{inflight--;setSync()}});
 document.addEventListener("dragend",()=>{S.grDrag=null;grClear();document.querySelectorAll("[data-grrow][draggable=true]").forEach(r=>r.draggable=false)});
+/* 某位學生這項不用考／不用做 */
+document.addEventListener("click",e=>{const b=e.target.closest("[data-exempt],[data-unexempt]");if(!b||S.readOnly)return;const item=curItem();if(!item)return;
+  const sid=b.dataset.exempt||b.dataset.unexempt,st=S.students.find(x=>x.id===sid),on=!!b.dataset.exempt;
+  patch(item.id,sid,{exempt:on?true:null},50);render();toast(on?`${st?.name||""} 這項${kindOf(item)==="done"?"不用做":"不用考"}，已從名單移除（⌘Z 可復原）`:`已把 ${st?.name||""} 加回這項`)});
 /* 拖曳調整 Speaklens 學生順序 */
 const spClear=()=>document.querySelectorAll("tr.drop-above,tr.drop-below,tr.dragging").forEach(r=>r.classList.remove("drop-above","drop-below","dragging"));
 document.addEventListener("pointerdown",e=>{const h=e.target.closest(".sphandle");if(h&&!S.readOnly){const tr=h.closest("tr[data-sprow]");if(tr)tr.draggable=true}});
